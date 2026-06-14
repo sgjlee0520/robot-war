@@ -1225,10 +1225,20 @@ class TrainingScene extends Phaser.Scene {
     this.add.rectangle(0,0,W,58 + top,0x000000,.88).setScrollFactor(0).setDepth(90).setOrigin(0);
     this.add.rectangle(0,57 + top,W,1.5,0x334466,.9).setScrollFactor(0).setDepth(90).setOrigin(0);
 
-    addGameButton(this, 32, 28 + top, 44, 36, '←', {dark:0x110022,mid:0x331166,bright:0x7744aa}, ()=>{
+    // Back button — plain interactive rect with scrollFactor(0) so hit area
+    // stays fixed to screen even when the arena camera scrolls
+    const backBg = this.add.rectangle(32, 28 + top, 48, 36, 0x331166, 0.92)
+      .setScrollFactor(0).setDepth(91).setStrokeStyle(2, 0x7744aa, 0.9).setInteractive();
+    this.add.text(32, 28 + top, '←', {
+      fontSize:'20px', fontFamily:RW.FONT, color:'#ffffff', stroke:'#000000', strokeThickness:3
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(92);
+    backBg.on('pointerover',  ()=>backBg.setFillStyle(0x6622cc, 0.95));
+    backBg.on('pointerout',   ()=>backBg.setFillStyle(0x331166, 0.92));
+    backBg.on('pointerdown',  ()=>{ backBg.setFillStyle(0x220044, 0.95); });
+    backBg.on('pointerup',    ()=>{
       this.save(); this.cameras.main.fade(280,0,0,0);
       this.time.delayedCall(280,()=>this.scene.start('Menu'));
-    }).setScrollFactor(0).setDepth(91);
+    });
 
     const lv=this.registry.get('level')||1;
     const badgeX = 78;
