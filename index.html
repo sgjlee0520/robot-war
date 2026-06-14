@@ -10,22 +10,119 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon.svg">
 <title>Robot War</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
 <style>
-* { margin:0; padding:0; box-sizing:border-box; }
-html,body { width:100%; height:100%; background:#030318; overflow:hidden; touch-action:none; }
-canvas { display:block; margin:auto; }
+:root {
+  --rw-bg: #030318;
+  --rw-pink: #ff69b4;
+  --rw-neon: #00ff88;
+  --rw-rust: #8b4513;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body {
+  width:100%; height:100%; background:var(--rw-bg); overflow:hidden; touch-action:none;
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+}
+#game-shell { width:100%; height:100%; position:relative; }
+canvas { display:block; margin:auto; image-rendering:auto; }
 </style>
 </head>
 <body>
+<div id="game-shell"></div>
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
 <script>
 const W = 360, H = 640;
 
 const MECH_DATA = {
-  og:    { name:'OG',    hp:5200, color:'#00ff88', superName:'Omni-Wave Burst' },
-  roby:  { name:'ROBY',  hp:3900, color:'#ff2244', superName:'Laser Cross' },
-  mechy: { name:'MECHY', hp:4500, color:'#00ccff', superName:'Missile Barrage' },
+  og:    { name:'OG',    hp:5200, color:'#00ff88', superName:'Omni-Wave Burst',   superDesc:'8-direction energy bolts radiate outward' },
+  roby:  { name:'ROBY',  hp:3900, color:'#ff2244', superName:'Laser Cross',         superDesc:'Cross lasers fire from the left eye' },
+  mechy: { name:'MECHY', hp:4500, color:'#00ccff', superName:'Missile Barrage',     superDesc:'Homing missiles lock every enemy on screen' },
 };
+
+// ── Shared mobile UI kit (post-apoc / tech aesthetic) ─────────
+const RW = {
+  FONT: 'Orbitron, Arial Black, sans-serif',
+  FONT_BODY: 'Rajdhani, Arial, sans-serif',
+  PINK: 0xff69b4,
+  safe(scene) {
+    const ar = scene.scale.width / Math.max(scene.scale.height, 1);
+    const portrait = ar < 0.72;
+    return { top: portrait ? 16 : 8, bottom: portrait ? 20 : 10, side: 10 };
+  },
+  fmt(n) { return n >= 1000 ? (n/1000).toFixed(1).replace(/\.0$/,'') + 'K' : `${n}`; },
+};
+
+function addCurrencyChip(scene, x, y, icon, value, accent, depth = 91) {
+  const sf = { scrollFactor: 0 };
+  const chip = scene.add.container(x, y).setDepth(depth).setScrollFactor(0);
+  const bg = scene.add.rectangle(0, 0, 78, 28, 0x0a0a18, 0.92).setStrokeStyle(1.5, accent, 0.55);
+  const sheen = scene.add.rectangle(0, -7, 74, 8, accent, 0.07);
+  const ico = scene.add.image(-26, 0, icon).setScale(1.05);
+  const glow = scene.add.circle(-26, 0, 10, accent, 0.12);
+  const txt = scene.add.text(4, 0, RW.fmt(value), {
+    fontSize: '13px', fontFamily: RW.FONT_BODY, color: '#eef0ff', fontStyle: '600'
+  }).setOrigin(0, 0.5);
+  chip.add([bg, sheen, glow, ico, txt]);
+  chip.setData('txt', txt);
+  chip.setData('setValue', v => txt.setText(RW.fmt(v)));
+  return chip;
+}
+
+function addGameButton(scene, x, y, w, h, label, colors, cb, depth = 0) {
+  const root = scene.add.container(x, y).setDepth(depth);
+  const pad = scene.add.rectangle(0, 0, w + 20, h + 18, 0, 0).setInteractive({ useHandCursor: true });
+  const shadow = scene.add.rectangle(2, 4, w, h, 0x000000, 0.35);
+  const bg = scene.add.rectangle(0, 0, w, h, colors.dark).setStrokeStyle(2, colors.mid, 0.9);
+  const shine = scene.add.rectangle(0, -h * 0.26, w - 6, h * 0.2, colors.bright, 0.1);
+  const txt = scene.add.text(0, 0, label, {
+    fontSize: `${Math.min(20, Math.floor(h * 0.38))}px`,
+    fontFamily: RW.FONT, color: '#ffffff', stroke: '#00000066', strokeThickness: 3
+  }).setOrigin(0.5);
+  root.add([shadow, bg, shine, txt, pad]);
+  const press = () => { root.setScale(0.95); shadow.setAlpha(0.15); bg.y = 2; txt.y = 2; };
+  const release = () => { root.setScale(1); shadow.setAlpha(0.35); bg.y = 0; txt.y = 0; };
+  pad.on('pointerover', () => { bg.setFillStyle(colors.mid); bg.setStrokeStyle(2, colors.bright, 1); });
+  pad.on('pointerout', () => { release(); bg.setFillStyle(colors.dark); bg.setStrokeStyle(2, colors.mid, 0.9); });
+  pad.on('pointerdown', () => { press(); if (cb) cb(); });
+  pad.on('pointerup', release);
+  return root;
+}
+
+function addStatCard(scene, x, y, w, h, label, value, sub, accentHex, depth = 0) {
+  const card = scene.add.container(x, y).setDepth(depth);
+  const bg = scene.add.rectangle(0, 0, w, h, 0x08081a, 0.95).setStrokeStyle(1.5, accentHex, 0.45);
+  const rail = scene.add.rectangle(-w/2 + 3, 0, 4, h - 8, accentHex, 0.85).setOrigin(0, 0.5);
+  const lbl = scene.add.text(-w/2 + 14, -h/2 + 10, label, {
+    fontSize: '9px', fontFamily: RW.FONT,
+    color: '#' + accentHex.toString(16).padStart(6, '0'), letterSpacing: 1
+  }).setOrigin(0, 0);
+  const val = scene.add.text(-w/2 + 14, -2, value, {
+    fontSize: '18px', fontFamily: RW.FONT, color: '#f4f6ff', stroke: '#00000088', strokeThickness: 2
+  }).setOrigin(0, 0.5);
+  const subT = scene.add.text(-w/2 + 14, h/2 - 12, sub, {
+    fontSize: '10px', fontFamily: RW.FONT_BODY, color: '#667799', wordWrap: { width: w - 22 }
+  }).setOrigin(0, 1);
+  card.add([bg, rail, lbl, val, subT]);
+  return card;
+}
+
+function floatJuice(scene, x, y, msg, color, size = 14, scrollFixed = false) {
+  const sx = scrollFixed ? x : x - scene.cameras.main.scrollX;
+  const sy = scrollFixed ? y : y - scene.cameras.main.scrollY;
+  const t = scene.add.text(sx, sy, msg, {
+    fontSize: `${size}px`, color, fontFamily: RW.FONT, stroke: '#000000', strokeThickness: 3
+  }).setOrigin(0.5).setDepth(scrollFixed ? 200 : 200).setScrollFactor(scrollFixed ? 0 : 1).setScale(0.6);
+  scene.tweens.add({
+    targets: t, scale: 1, y: sy - 52, alpha: 0, duration: 1200, ease: 'Cubic.easeOut',
+    onComplete: () => t.destroy()
+  });
+}
 
 // ── Persistent save / load via localStorage ───────────────────
 function saveProgress(reg) {
@@ -221,12 +318,19 @@ class BootScene extends Phaser.Scene {
     });
 
     // ── UI ELEMENTS ───────────────────────────────────────────────────────
-    stamp('hpBg',  210,18,g=>{ g.fillStyle(0x0e0e24); g.fillRoundedRect(0,0,210,18,5); g.lineStyle(1,0x2a2a55,1); g.strokeRoundedRect(0,0,210,18,5); });
+    stamp('hpBg',  210,18,g=>{ g.fillStyle(0x0e0e24); g.fillRoundedRect(0,0,210,18,5); g.lineStyle(1,0x2a2a55,1); g.strokeRoundedRect(0,0,210,18,5); g.fillStyle(0x334466,.15); g.fillRoundedRect(2,2,206,6,3); });
     stamp('hpFill',210,18,g=>{ g.fillStyle(0x00cc44); g.fillRoundedRect(0,0,210,18,5); g.fillStyle(0x00ff66,.35); g.fillRoundedRect(0,0,210,9,5); });
     stamp('ammoOn', 36,15,g=>{ g.fillStyle(0x00ff88); g.fillRoundedRect(0,0,36,15,4); g.fillStyle(0x66ffbb,.4); g.fillRoundedRect(2,2,32,6,3); });
     stamp('ammoOff',36,15,g=>{ g.fillStyle(0x0d1f14); g.fillRoundedRect(0,0,36,15,4); g.lineStyle(1,0x1a4428); g.strokeRoundedRect(0,0,36,15,4); });
     stamp('sBg',  190,15,g=>{ g.fillStyle(0x001428); g.fillRoundedRect(0,0,190,15,4); g.lineStyle(1,0x002244); g.strokeRoundedRect(0,0,190,15,4); });
     stamp('sFill',190,15,g=>{ g.fillStyle(0x0077ee); g.fillRoundedRect(0,0,190,15,4); g.fillStyle(0x44aaff,.4); g.fillRoundedRect(0,0,190,8,4); });
+    stamp('superBtnLocked',64,64,g=>{
+      g.fillStyle(0x111122); g.fillCircle(32,32,32);
+      g.fillStyle(0x1a1a33); g.fillCircle(32,32,26);
+      g.lineStyle(2,0x333355,.8); g.strokeCircle(32,32,22);
+      g.fillStyle(0x444466); g.fillRect(24,28,16,14); g.fillRect(28,22,8,8);
+      g.fillStyle(0x222244); g.fillRect(26,30,12,10);
+    });
     stamp('superBtn',64,64,g=>{
       g.fillStyle(0x002244); g.fillCircle(32,32,32);
       g.fillStyle(0x003d88); g.fillCircle(32,32,26);
@@ -235,22 +339,38 @@ class BootScene extends Phaser.Scene {
       g.fillTriangle(36,14,22,32,30,32);
       g.fillTriangle(26,32,34,32,20,50);
     });
-    stamp('fireBtn',72,72,g=>{
-      g.fillStyle(0x550800); g.fillCircle(36,36,36);
-      g.fillStyle(0x991100); g.fillCircle(36,36,29);
-      g.fillStyle(0xdd3300); g.fillCircle(36,36,22);
-      g.fillStyle(0xff6633); g.fillCircle(36,36,13);
-      g.fillStyle(0xff9966); g.fillCircle(36,36,6);
+    stamp('superBtnReady',64,64,g=>{
+      g.fillStyle(0xff69b4,.25); g.fillCircle(32,32,32);
+      g.fillStyle(0x003366); g.fillCircle(32,32,28);
+      g.fillStyle(0x0088ff); g.fillCircle(32,32,22);
+      g.fillStyle(0x44ccff,.6); g.fillCircle(32,32,14);
+      g.fillStyle(0xffffff);
+      g.fillTriangle(36,14,22,32,30,32);
+      g.fillTriangle(26,32,34,32,20,50);
     });
-    stamp('jBase',100,100,g=>{
-      g.fillStyle(0xffffff,.09); g.fillCircle(50,50,50);
-      g.lineStyle(1.5,0xffffff,.18); g.strokeCircle(50,50,50);
-      g.lineStyle(1,0xffffff,.08); g.strokeCircle(50,50,28);
+    stamp('fireBtn',80,80,g=>{
+      g.fillStyle(0xffffff,.06); g.fillCircle(40,40,40);
+      g.lineStyle(2,0xffffff,.14); g.strokeCircle(40,40,38);
+      g.lineStyle(1,0xff6633,.25); g.strokeCircle(40,40,28);
+      g.fillStyle(0x550800,.85); g.fillCircle(40,40,30);
+      g.fillStyle(0x991100); g.fillCircle(40,40,24);
+      g.fillStyle(0xdd3300); g.fillCircle(40,40,18);
+      g.fillStyle(0xff6633); g.fillCircle(40,40,10);
+      g.fillStyle(0xff9966); g.fillCircle(40,40,5);
     });
-    stamp('jThumb',56,56,g=>{
-      g.fillStyle(0xffffff,.38); g.fillCircle(28,28,28);
-      g.lineStyle(1.5,0xffffff,.55); g.strokeCircle(28,28,28);
+    stamp('jBase',110,110,g=>{
+      g.fillStyle(0x0a1428,.45); g.fillCircle(55,55,52);
+      g.lineStyle(2,0x44aaff,.22); g.strokeCircle(55,55,50);
+      g.lineStyle(1.5,0xffffff,.12); g.strokeCircle(55,55,34);
+      g.lineStyle(1,0x00ff88,.08); g.strokeCircle(55,55,18);
+      g.fillStyle(0xffffff,.04); g.fillCircle(55,55,52);
     });
+    stamp('jThumb',58,58,g=>{
+      g.fillStyle(0xffffff,.22); g.fillCircle(29,29,26);
+      g.lineStyle(2,0xffffff,.45); g.strokeCircle(29,29,26);
+      g.fillStyle(0x00ff88,.12); g.fillCircle(29,29,12);
+    });
+    stamp('uiDot',8,8,g=>{ g.fillStyle(0x556688); g.fillCircle(4,4,4); });
     stamp('star',3,3,g=>{ g.fillStyle(0xffffff); g.fillRect(0,0,3,3); });
     stamp('panelDim',W,H,g=>{ g.fillStyle(0x000000,.7); g.fillRect(0,0,W,H); });
 
@@ -688,11 +808,15 @@ class MenuScene extends Phaser.Scene {
   constructor() { super('Menu'); }
 
   create() {
+    const safe = RW.safe(this);
     // ── Background
     this.add.rectangle(0,0,W,H,0x030318).setOrigin(0);
-    // subtle gradient bands
     this.add.rectangle(0,0,W,H*.5,0x050530,.35).setOrigin(0);
     this.add.rectangle(0,H*.5,W,H*.5,0x030318,.6).setOrigin(0);
+    // Rust streak accents
+    const rust = this.add.graphics().setAlpha(.08);
+    rust.fillStyle(0x8b4513); rust.fillTriangle(0,H*.3,W*.4,H*.55,0,H*.7);
+    rust.fillStyle(0x4a2040); rust.fillTriangle(W,H*.2,W*.6,0,W,H*.45);
 
     // Stars
     [[32,28],[88,16],[144,52],[200,34],[256,18],[312,44],[48,100],[160,88],[270,72],
@@ -701,222 +825,288 @@ class MenuScene extends Phaser.Scene {
       this.tweens.add({targets:s,alpha:.05,duration:Phaser.Math.Between(800,2400),yoyo:true,repeat:-1,delay:Phaser.Math.Between(0,2000)});
     });
 
-    // ── Top resource bar
-    this.add.rectangle(0,0,W,42,0x000000,.65).setOrigin(0);
-    this.add.rectangle(0,41,W,1,0x1a1a55,.9).setOrigin(0);
+    // ── Top resource bar (premium chips)
+    const barY = 24 + safe.top;
+    this.add.rectangle(0,0,W,barY + 28,0x000000,.72).setOrigin(0);
+    this.add.rectangle(0,barY + 27,W,1.5,0x2a2a66,.85).setOrigin(0);
     const oils=this.registry.get('oils')||0, nuts=this.registry.get('nuts')||0, lv=this.registry.get('level')||1;
-    this.add.image(20,21,'oil').setScale(1.1);
-    this.add.text(34,21,`${oils}`,{fontSize:'13px',color:'#bbbbbb',fontFamily:'Arial'}).setOrigin(0,.5);
-    this.add.image(82,21,'nut').setScale(1.1);
-    this.add.text(96,21,`${nuts}`,{fontSize:'13px',color:'#bbbbbb',fontFamily:'Arial'}).setOrigin(0,.5);
-    this.add.rectangle(W-60,21,68,26,0x1a1a00,.6).setStrokeStyle(1,0x443300,.8);
-    this.add.text(W-26,21,`LV  ${lv}`,{fontSize:'13px',fontFamily:'Arial Black',color:'#ffcc44'}).setOrigin(1,.5);
+    addCurrencyChip(this, 52, barY, 'oil', oils, 0x6688aa);
+    addCurrencyChip(this, 138, barY, 'nut', nuts, 0xccaa66);
+    const lvBadge = this.add.container(W - 42, barY).setDepth(91);
+    lvBadge.add([
+      this.add.rectangle(0,0,72,28,0x1a1400,.85).setStrokeStyle(1.5,0x664400,.85),
+      this.add.text(0,0,`LV ${lv}`,{fontSize:'14px',fontFamily:RW.FONT,color:'#ffcc44'}).setOrigin(.5)
+    ]);
 
     // ── Title
-    const titleY=108;
+    const titleY=108 + safe.top;
     this.add.text(W/2,titleY,'ROBOT WAR',{
-      fontSize:'46px', fontFamily:'Arial Black,sans-serif',
-      color:'#00ff88', stroke:'#002211', strokeThickness:8
+      fontSize:'42px', fontFamily:RW.FONT, color:'#00ff88', stroke:'#002211', strokeThickness:8
     }).setOrigin(.5);
-    // glow layer
     this.add.text(W/2,titleY,'ROBOT WAR',{
-      fontSize:'46px', fontFamily:'Arial Black,sans-serif',
-      color:'#00ff88', stroke:'#00ff88', strokeThickness:14, alpha:.18
+      fontSize:'42px', fontFamily:RW.FONT, color:'#00ff88', stroke:'#00ff88', strokeThickness:14, alpha:.15
     }).setOrigin(.5);
 
-    this.add.text(W/2,150,'Rise of the Mechs',{
-      fontSize:'14px', fontFamily:'Arial,sans-serif', color:'#556688'
+    this.add.text(W/2,titleY + 42,'Rise of the Mechs',{
+      fontSize:'15px', fontFamily:RW.FONT_BODY, color:'#7788aa', letterSpacing: 2
     }).setOrigin(.5);
 
     // ── Character showcase panel
-    this.add.rectangle(W/2,265,W-40,150,0x060620,.8).setStrokeStyle(1,0x1a1a44);
-    // OG floating
-    const ogImg=this.add.image(W/2-44,268,'og').setScale(2.8);
-    this.tweens.add({targets:ogImg,y:260,duration:1600,yoyo:true,repeat:-1,ease:'Sine.easeInOut'});
-    // Crystal orbiting
-    const cImg=this.add.image(W/2+60,258,'crystal').setScale(1.6);
+    const panelY = 268 + safe.top * 0.5;
+    this.add.rectangle(W/2,panelY,W-36,156,0x060620,.88).setStrokeStyle(1.5,0x2a2a55,.9);
+    this.add.rectangle(W/2,panelY - 72,W-40,2,0xff69b4,.25);
+    const ogImg=this.add.image(W/2-44,panelY + 2,'og').setScale(2.8);
+    this.tweens.add({targets:ogImg,y:panelY - 6,duration:1600,yoyo:true,repeat:-1,ease:'Sine.easeInOut'});
+    const cImg=this.add.image(W/2+60,panelY - 8,'crystal').setScale(1.6);
     this.tweens.add({targets:cImg,angle:20,duration:2200,yoyo:true,repeat:-1,ease:'Sine.easeInOut'});
-    // crystal glow
     const cGfx=this.add.graphics().setAlpha(.5);
     this.tweens.add({targets:{t:0},t:1,duration:1200,yoyo:true,repeat:-1,onUpdate:(tw,o)=>{
-      cGfx.clear(); cGfx.fillStyle(0xff69b4,.06+o.t*.08); cGfx.fillCircle(W/2+60,258,18+o.t*6);
+      cGfx.clear(); cGfx.fillStyle(0xff69b4,.06+o.t*.1); cGfx.fillCircle(W/2+60,panelY - 8,18+o.t*8);
     }});
-    // eye glow on OG
     const eyeGfx=this.add.graphics();
     this.tweens.add({targets:{t:0},t:1,duration:1000,yoyo:true,repeat:-1,onUpdate:(tw,o)=>{
-      eyeGfx.clear(); eyeGfx.fillStyle(0x00ff88,.12+o.t*.2); eyeGfx.fillCircle(W/2-30,263,8+o.t*4);
+      eyeGfx.clear(); eyeGfx.fillStyle(0x00ff88,.12+o.t*.2); eyeGfx.fillCircle(W/2-30,panelY - 3,8+o.t*4);
     }});
-    // small Roby + Mechy flanking, locked look
-    this.add.image(W/2-115,282,'roby').setScale(1.5).setTint(0x223344).setAlpha(.6);
-    this.add.image(W/2+108,282,'mechy').setScale(1.4).setTint(0x223344).setAlpha(.6);
+    this.add.image(W/2-115,panelY + 16,'roby').setScale(1.5).setTint(0x223344).setAlpha(.55);
+    this.add.image(W/2+108,panelY + 16,'mechy').setScale(1.4).setTint(0x223344).setAlpha(.55);
 
     // ── Buttons
-    const btnY1=388, btnY2=456;
-    this.mkBtn(W/2, btnY1, 'PLAY', 0x005522, 0x00cc55, 0x00ff77, ()=>{
+    const btnY1=400 + safe.top * 0.3, btnY2=468 + safe.top * 0.3;
+    addGameButton(this, W/2, btnY1, 220, 52, 'PLAY', {dark:0x003318,mid:0x00aa44,bright:0x00ff77}, ()=>{
       this.cameras.main.fade(280,0,0,0);
       this.time.delayedCall(280,()=>this.scene.start('Training'));
     });
-    this.mkBtn(W/2, btnY2, 'ROBOT ROAD', 0x220055, 0x6600cc, 0x9933ff, ()=>{
+    addGameButton(this, W/2, btnY2, 220, 52, 'ROBOT ROAD', {dark:0x1a0033,mid:0x6600cc,bright:0xcc66ff}, ()=>{
       this.cameras.main.fade(280,0,0,0);
       this.time.delayedCall(280,()=>this.scene.start('RobotRoad'));
     });
 
-    // Replay story button
-    const replayBtn=this.add.text(W/2,514,'▶ Watch story again',{
-      fontSize:'12px', color:'#333355', fontFamily:'Arial', backgroundColor:'#00000055', padding:{x:10,y:5}
-    }).setOrigin(.5).setInteractive();
+    const replayBtn=this.add.text(W/2,530,'▶ Watch story again',{
+      fontSize:'12px', color:'#556688', fontFamily:RW.FONT_BODY,
+      backgroundColor:'#00000066', padding:{x:14,y:8}
+    }).setOrigin(.5).setInteractive({ useHandCursor: true });
     replayBtn.on('pointerdown',()=>{
+      replayBtn.setScale(0.95);
       this.registry.set('storyDone',false);
       this.cameras.main.fade(280,0,0,0);
       this.time.delayedCall(280,()=>this.scene.start('Story'));
     });
+    replayBtn.on('pointerup',()=>replayBtn.setScale(1));
+    replayBtn.on('pointerout',()=>replayBtn.setScale(1));
 
-    this.add.text(W/2,H-18,'Demo v0.1  ·  OG  ·  Roby  ·  Mechy',{
-      fontSize:'10px', color:'#22223a', fontFamily:'Arial'
+    this.add.text(W/2,H - 14 - safe.bottom,'Demo v0.2  ·  OG  ·  Roby  ·  Mechy',{
+      fontSize:'10px', color:'#333355', fontFamily:RW.FONT_BODY
     }).setOrigin(.5);
 
     this.cameras.main.fadeIn(350);
   }
-
-  mkBtn(x,y,label,dark,mid,bright,cb) {
-    const btn=this.add.rectangle(x,y,200,48,dark).setInteractive().setStrokeStyle(1.5,mid,.7);
-    // inner highlight
-    this.add.rectangle(x,y-10,196,14,bright,.06);
-    const txt=this.add.text(x,y,label,{fontSize:'20px',fontFamily:'Arial Black',color:'#ffffff',stroke:'#00000055',strokeThickness:3}).setOrigin(.5);
-    btn.on('pointerover',()=>{ btn.setFillStyle(mid); btn.setStrokeStyle(2,bright,1); });
-    btn.on('pointerout', ()=>{ btn.setFillStyle(dark); btn.setStrokeStyle(1.5,mid,.7); });
-    btn.on('pointerdown',cb);
-  }
 }
 
 // ═══════════════════════════════════════════════════════════════
-// ROBOT ROAD  –  mech collection + selection screen
+// ROBOT ROAD  –  carousel character select
 // ═══════════════════════════════════════════════════════════════
 class RobotRoadScene extends Phaser.Scene {
   constructor() { super('RobotRoad'); }
 
   create() {
-    this.add.rectangle(0,0,W,H,0x030318).setOrigin(0);
-    this.add.rectangle(0,0,W,H*.45,0x06062a,.5).setOrigin(0);
-
-    // Header
-    this.add.rectangle(0,0,W,56,0x000000,.75).setOrigin(0);
-    this.add.rectangle(0,55,W,1.5,0x2a2a66,.9).setOrigin(0);
-    this.add.text(W/2,14,'ROBOT ROAD',{fontSize:'28px',fontFamily:'Arial Black',color:'#aa88ff',stroke:'#110022',strokeThickness:5}).setOrigin(.5,0);
-    const nuts=this.registry.get('nuts')||0;
-    this.add.image(22,44,'nut').setScale(1.1);
-    this.add.text(36,44,`${nuts} nuts`,{fontSize:'12px',color:'#888899',fontFamily:'Arial'}).setOrigin(0,.5);
-
-    // Instruction hint
-    this.add.text(W/2,44,'Tap a mech to select it',{fontSize:'10px',color:'#333355',fontFamily:'Arial'}).setOrigin(.5,.5);
-
-    const mechs=[
-      {key:'og',   name:'OG',    sub:'The Last Survivor', hp:5200, maxLvHp:9100, superDesc:'Omni-Wave Burst — 8 energy bolts', cost:0,  unlocked:true},
-      {key:'roby', name:'ROBY',  sub:'The Brawler',       hp:3900, maxLvHp:7200, superDesc:'Laser Cross — fires from left eye', cost:15, unlocked:nuts>=15},
-      {key:'mechy',name:'MECHY', sub:'The Engineer',      hp:4500, maxLvHp:8200, superDesc:'Missile Barrage — locks onto enemies', cost:30, unlocked:nuts>=30},
+    this.safe = RW.safe(this);
+    this.nuts = this.registry.get('nuts') || 0;
+    this.mechs = [
+      {key:'og',   name:'OG',    sub:'The Last Survivor', hp:5200, maxLvHp:9100, cost:0,  unlocked:true},
+      {key:'roby', name:'ROBY',  sub:'The Brawler',       hp:3900, maxLvHp:7200, cost:15, unlocked:this.nuts>=15},
+      {key:'mechy',name:'MECHY', sub:'The Engineer',      hp:4500, maxLvHp:8200, cost:30, unlocked:this.nuts>=30},
     ];
+    this.carouselIndex = Math.max(0, this.mechs.findIndex(m => m.key === (this.registry.get('selectedRobot') || 'og')));
+    this.swiping = false;
+    this.dragStartX = 0;
 
-    // Track selection state
-    let selected = this.registry.get('selectedRobot') || 'og';
-    const cardBorders = {};
-    const selBadges   = {};
-
-    const refresh = () => {
-      mechs.forEach(m => {
-        if (!cardBorders[m.key]) return;
-        const isSel = m.key === selected;
-        cardBorders[m.key].setStrokeStyle(isSel ? 2.5 : 1.5, isSel ? 0x00ff88 : 0x3322aa, isSel ? 1 : .7);
-        if (selBadges[m.key]) {
-          selBadges[m.key].setText(isSel ? '★  ACTIVE' : 'TAP TO SELECT');
-          selBadges[m.key].setColor(isSel ? '#00ff88' : '#334433');
-        }
-      });
-    };
-
-    mechs.forEach((m,i)=>{
-      const cy=128+i*163;
-      const locked=!m.unlocked;
-      const isSel = m.key === selected;
-
-      // Card background
-      const cardBg = this.add.rectangle(W/2,cy,W-24,144,locked?0x06060e:0x09091e);
-      const border = this.add.rectangle(W/2,cy,W-24,144,0x000000,0)
-        .setStrokeStyle(isSel?2.5:1.5, locked?0x1a1a2e:(isSel?0x00ff88:0x3322aa), locked?.5:1);
-      if (!locked) cardBorders[m.key] = border;
-
-      // Active glow behind selected card
-      if (isSel && !locked) {
-        this.add.rectangle(W/2,cy,W-24,144,0x00ff88,.04);
-      }
-
-      // Portrait box (left)
-      this.add.rectangle(62,cy,96,114,locked?0x04040c:0x0d0d28).setStrokeStyle(1,locked?0x111122:0x221166,.8);
-      const rob=this.add.image(62,cy+4,m.key).setScale(1.85);
-      if (locked) rob.setTint(0x1a1a33);
-
-      // Info (right)
-      this.add.text(122,cy-52,m.name,{fontSize:'20px',fontFamily:'Arial Black',color:locked?'#2a2a44':MECH_DATA[m.key].color});
-      this.add.text(122,cy-28,m.sub,{fontSize:'11px',color:locked?'#222233':'#6677aa',fontFamily:'Arial'});
-
-      if (!locked) {
-        this.add.text(122,cy-9,`HP: ${m.hp} → ${m.maxLvHp}`,{fontSize:'10px',color:'#335533',fontFamily:'Arial'});
-        this.add.text(122,cy+8,`SUPER: ${m.superDesc}`,{fontSize:'9px',color:'#334466',fontFamily:'Arial',wordWrap:{width:212}});
-
-        // HP bar
-        this.add.rectangle(122,cy+40,212,6,0x081208).setOrigin(0,.5);
-        this.add.rectangle(122,cy+40,Math.round(212*(m.hp/m.maxLvHp)),6,0x008833).setOrigin(0,.5);
-
-        // Selection badge
-        const badge = this.add.text(W-14,cy+54,isSel?'★  ACTIVE':'TAP TO SELECT',{
-          fontSize:'10px', fontFamily:'Arial Black', color:isSel?'#00ff88':'#334433'
-        }).setOrigin(1,1);
-        selBadges[m.key] = badge;
-
-        // Hit area (entire card is tappable)
-        const hit = this.add.rectangle(W/2,cy,W-24,144,0x000000,0).setInteractive();
-        hit.on('pointerdown',()=>{
-          selected = m.key;
-          this.registry.set('selectedRobot', m.key);
-          refresh();
-          this.cameras.main.flash(180,0,180,80);
-          this.float(W/2, cy-50, `${m.name} selected!`, MECH_DATA[m.key].color, 16);
-        });
-      } else {
-        // Locked: show cost
-        this.add.image(122,cy+16,'nut').setScale(1.1);
-        this.add.text(138,cy+16,`${m.cost} nuts to unlock`,{fontSize:'12px',color:'#554433',fontFamily:'Arial'}).setOrigin(0,.5);
-        this.add.text(W-14,cy+54,'LOCKED',{fontSize:'10px',fontFamily:'Arial Black',color:'#2a1a3a'}).setOrigin(1,1);
-      }
-    });
-
-    // Bottom bar
-    this.add.rectangle(0,H-52,W,52,0x000000,.8).setOrigin(0);
-    this.add.rectangle(0,H-52,W,1,0x1a1a33).setOrigin(0);
-
-    // PLAY WITH SELECTED button
-    const playBtn = this.add.rectangle(W/2-50,H-26,170,36,0x003311).setInteractive().setStrokeStyle(1.5,0x00aa44,.8);
-    this.add.text(W/2-50,H-26,'▶ PLAY',{fontSize:'15px',fontFamily:'Arial Black',color:'#00ff88'}).setOrigin(.5);
-    playBtn.on('pointerover',()=>playBtn.setFillStyle(0x004422));
-    playBtn.on('pointerout', ()=>playBtn.setFillStyle(0x003311));
-    playBtn.on('pointerdown',()=>{
-      this.cameras.main.fade(250,0,0,0);
-      this.time.delayedCall(250,()=>this.scene.start('Training'));
-    });
-
-    // Back button
-    const back = this.add.rectangle(W-50,H-26,80,36,0x110033,.9).setInteractive().setStrokeStyle(1,0x441188,.8);
-    this.add.text(W-50,H-26,'← BACK',{fontSize:'12px',fontFamily:'Arial Black',color:'#9966cc'}).setOrigin(.5);
-    back.on('pointerdown',()=>{
-      this.cameras.main.fade(220,0,0,0);
-      this.time.delayedCall(220,()=>this.scene.start('Menu'));
-    });
-
+    this.buildBackdrop();
+    this.buildHeader();
+    this.buildCarousel();
+    this.buildDots();
+    this.buildFooter();
+    this.snapTo(this.carouselIndex, false);
     this.cameras.main.fadeIn(300);
   }
 
-  float(x,y,msg,color,size=14) {
-    const t=this.add.text(x,y,msg,{fontSize:`${size}px`,color,fontFamily:'Arial Black',stroke:'#000000',strokeThickness:3}).setOrigin(.5);
-    this.tweens.add({targets:t, y:y-40, alpha:0, duration:1100, ease:'Power2', onComplete:()=>t.destroy()});
+  buildBackdrop() {
+    this.add.rectangle(0,0,W,H,0x030318).setOrigin(0);
+    this.add.rectangle(0,0,W,H*.42,0x08082e,.55).setOrigin(0);
+    const grid = this.add.graphics().setAlpha(.04);
+    for (let x = 0; x < W; x += 24) { grid.lineStyle(1, 0x4466aa); grid.lineBetween(x, 0, x, H); }
+    for (let y = 0; y < H; y += 24) { grid.lineStyle(1, 0x4466aa); grid.lineBetween(0, y, W, y); }
+  }
+
+  buildHeader() {
+    const top = 14 + this.safe.top;
+    this.add.rectangle(0,0,W,top + 52,0x000000,.78).setOrigin(0);
+    this.add.rectangle(0,top + 51,W,1.5,0x4433aa,.75).setOrigin(0);
+    this.add.text(W/2, top + 4,'ROBOT ROAD',{
+      fontSize:'24px', fontFamily:RW.FONT, color:'#cc99ff', stroke:'#110022', strokeThickness:4
+    }).setOrigin(.5,0);
+    this.nutChip = addCurrencyChip(this, 52, top + 38, 'nut', this.nuts, 0xccaa66);
+    this.add.text(W/2, top + 38,'Swipe to browse mechs',{
+      fontSize:'11px', color:'#445566', fontFamily:RW.FONT_BODY
+    }).setOrigin(.5,.5);
+  }
+
+  buildCarousel() {
+    const cy = 310 + this.safe.top * 0.4;
+    this.carouselY = cy;
+    this.track = this.add.container(W/2, cy);
+    this.cardWidth = 300;
+    this.cards = [];
+
+    this.mechs.forEach((m, i) => {
+      const card = this.buildMechCard(m);
+      card.x = i * this.cardWidth;
+      this.track.add(card);
+      this.cards.push(card);
+    });
+
+    const zone = this.add.rectangle(W/2, cy, W, 340, 0, 0).setInteractive();
+    zone.on('pointerdown', p => { this.swiping = true; this.dragStartX = p.x; this.trackStartX = this.track.x; });
+    zone.on('pointermove', p => {
+      if (!this.swiping) return;
+      const dx = p.x - this.dragStartX;
+      this.track.x = this.trackStartX + dx;
+      this.updateCardScales();
+    });
+    zone.on('pointerup', p => {
+      if (!this.swiping) return;
+      this.swiping = false;
+      const dx = p.x - this.dragStartX;
+      if (dx < -40 && this.carouselIndex < this.mechs.length - 1) this.snapTo(this.carouselIndex + 1);
+      else if (dx > 40 && this.carouselIndex > 0) this.snapTo(this.carouselIndex - 1);
+      else this.snapTo(this.carouselIndex);
+    });
+  }
+
+  buildMechCard(m) {
+    const card = this.add.container(0, 0);
+    const locked = !m.unlocked;
+    const accent = Phaser.Display.Color.HexStringToColor(MECH_DATA[m.key].color).color;
+    const bg = this.add.rectangle(0, 0, 284, 320, locked ? 0x06060e : 0x0a0a22, 0.96)
+      .setStrokeStyle(2, locked ? 0x222233 : accent, locked ? 0.5 : 0.55);
+    const glow = this.add.rectangle(0, -130, 240, 80, accent, locked ? 0 : 0.06);
+    card.add([glow, bg]);
+
+    // Portrait stage
+    const stage = this.add.rectangle(0, -70, 120, 130, 0x050518, 0.95).setStrokeStyle(1.5, accent, 0.35);
+    const portrait = this.add.image(0, -62, m.key).setScale(2.4);
+    if (locked) portrait.setTint(0x1a1a33).setAlpha(0.55);
+    card.add([stage, portrait]);
+
+    // Name block
+    card.add(this.add.text(0, 12, m.name, {
+      fontSize:'28px', fontFamily:RW.FONT, color: locked ? '#333355' : MECH_DATA[m.key].color,
+      stroke:'#000000', strokeThickness:3
+    }).setOrigin(.5));
+    card.add(this.add.text(0, 38, m.sub, {
+      fontSize:'12px', fontFamily:RW.FONT_BODY, color: locked ? '#2a2a3a' : '#8899bb', letterSpacing: 1
+    }).setOrigin(.5));
+
+    if (!locked) {
+      const hpCard = addStatCard(this, -72, 108, 138, 58, 'HP', `${m.hp.toLocaleString()}`, `MAX ${m.maxLvHp.toLocaleString()}`, 0x00cc44);
+      const superCard = addStatCard(this, 72, 108, 138, 58, 'SUPER', MECH_DATA[m.key].superName.split(' ')[0], MECH_DATA[m.key].superDesc, RW.PINK);
+      card.add([hpCard, superCard]);
+
+      const barBg = this.add.rectangle(0, 152, 220, 8, 0x081208);
+      const fillW = Math.round(220 * (m.hp / m.maxLvHp));
+      const barFill = this.add.rectangle(-110, 152, fillW, 8, 0x00aa44).setOrigin(0, 0.5);
+      card.add([barBg, barFill]);
+
+      card.setData('badge', this.add.text(0, 178, 'TAP CARD TO SELECT', {
+        fontSize:'10px', fontFamily:RW.FONT, color:'#445566'
+      }).setOrigin(.5));
+      card.add(card.getData('badge'));
+
+      const hit = this.add.rectangle(0, 40, 284, 280, 0, 0).setInteractive({ useHandCursor: true });
+      hit.on('pointerdown', () => {
+        if (this.carouselIndex !== this.mechs.indexOf(m)) { this.snapTo(this.mechs.indexOf(m)); return; }
+        this.registry.set('selectedRobot', m.key);
+        this.refreshBadges();
+        this.cameras.main.flash(160, 0, 180, 80);
+        floatJuice(this, W/2, this.carouselY - 120, `${m.name} ACTIVE`, MECH_DATA[m.key].color, 18, true);
+      });
+      card.add(hit);
+    } else {
+      card.add(this.add.image(-40, 108, 'nut').setScale(1.2));
+      card.add(this.add.text(8, 108, `${m.cost} nuts to unlock`, {
+        fontSize:'14px', fontFamily:RW.FONT_BODY, color:'#886644'
+      }).setOrigin(0, 0.5));
+      card.add(this.add.text(0, 150, 'LOCKED', {
+        fontSize:'16px', fontFamily:RW.FONT, color:'#332244'
+      }).setOrigin(.5));
+    }
+    card.setData('mechKey', m.key);
+    return card;
+  }
+
+  buildDots() {
+    this.dots = [];
+    const dotY = 500 + this.safe.top * 0.3;
+    this.mechs.forEach((m, i) => {
+      const dot = this.add.circle(W/2 + (i - 1) * 18, dotY, 5, i === this.carouselIndex ? RW.PINK : 0x334455, i === this.carouselIndex ? 1 : 0.6);
+      this.dots.push(dot);
+    });
+  }
+
+  buildFooter() {
+    const footY = H - 56 - this.safe.bottom;
+    this.add.rectangle(0, footY - 8, W, 64 + this.safe.bottom, 0x000000, 0.88).setOrigin(0);
+    this.add.rectangle(0, footY - 8, W, 1.5, 0x2a2a55, 0.85).setOrigin(0);
+    addGameButton(this, W/2 - 58, footY + 18, 168, 44, '▶ PLAY', {dark:0x003318,mid:0x00aa44,bright:0x00ff77}, ()=>{
+      this.cameras.main.fade(250,0,0,0);
+      this.time.delayedCall(250,()=>this.scene.start('Training'));
+    });
+    addGameButton(this, W - 52, footY + 18, 88, 44, 'BACK', {dark:0x110033,mid:0x5522aa,bright:0x9966ff}, ()=>{
+      this.cameras.main.fade(220,0,0,0);
+      this.time.delayedCall(220,()=>this.scene.start('Menu'));
+    }, 0);
+  }
+
+  snapTo(index, animate = true) {
+    this.carouselIndex = Phaser.Math.Clamp(index, 0, this.mechs.length - 1);
+    const targetX = W/2 - this.carouselIndex * this.cardWidth;
+    if (animate) {
+      this.tweens.add({
+        targets: this.track, x: targetX, duration: 320, ease: 'Cubic.easeOut',
+        onUpdate: () => this.updateCardScales(),
+        onComplete: () => this.refreshBadges()
+      });
+    } else {
+      this.track.x = targetX;
+      this.updateCardScales();
+      this.refreshBadges();
+    }
+    this.dots.forEach((d, i) => {
+      d.setFillStyle(i === this.carouselIndex ? RW.PINK : 0x334455, i === this.carouselIndex ? 1 : 0.55);
+      d.setScale(i === this.carouselIndex ? 1.25 : 1);
+    });
+  }
+
+  updateCardScales() {
+    this.cards.forEach((card, i) => {
+      const worldX = this.track.x + i * this.cardWidth;
+      const dist = Math.abs(worldX - W/2) / this.cardWidth;
+      const scale = Phaser.Math.Linear(1, 0.82, Phaser.Math.Clamp(dist, 0, 1));
+      const alpha = Phaser.Math.Linear(1, 0.45, Phaser.Math.Clamp(dist, 0, 1));
+      card.setScale(scale);
+      card.setAlpha(alpha);
+    });
+  }
+
+  refreshBadges() {
+    const selected = this.registry.get('selectedRobot') || 'og';
+    this.cards.forEach((card, i) => {
+      const badge = card.getData('badge');
+      if (!badge) return;
+      const key = card.getData('mechKey');
+      const active = key === selected && i === this.carouselIndex;
+      badge.setText(active ? '★ ACTIVE MECH' : 'TAP CARD TO SELECT');
+      badge.setColor(active ? '#00ff88' : '#445566');
+    });
   }
 }
 
@@ -948,8 +1138,10 @@ class TrainingScene extends Phaser.Scene {
 
     this.time.addEvent({delay:1900, callback:this.enemyShoot, callbackScope:this, loop:true});
     this.time.addEvent({delay:1600, callback:this.rechargeAmmo, callbackScope:this, loop:true});
-    this.time.addEvent({delay:100,  callback:()=>{
-      if(this.superCharge<100){ this.superCharge=Math.min(100,this.superCharge+.22); this.refreshSuperBar(); }
+    this.time.addEvent({delay:100, callback:()=>{
+      if(this.superUnlocked && this.superCharge<100){
+        this.superCharge=Math.min(100,this.superCharge+.22); this.refreshSuperBar();
+      }
     }, loop:true});
   }
 
@@ -1023,86 +1215,109 @@ class TrainingScene extends Phaser.Scene {
 
   // ── HUD ──────────────────────────────────────────────────────
   buildHUD() {
+    this.safe = RW.safe(this);
+    const top = this.safe.top;
+    const bottom = this.safe.bottom;
+    this.hudBottom = H - 128 - bottom;
+    this.superUnlocked = (this.registry.get('level') || 1) >= 10;
+
     // ── TOP BAR ──────────────────────────────────────
-    this.add.rectangle(0,0,W,56,0x000000,.85).setScrollFactor(0).setDepth(90).setOrigin(0);
-    this.add.rectangle(0,55,W,1.5,0x1a1a44,.9).setScrollFactor(0).setDepth(90).setOrigin(0);
+    this.add.rectangle(0,0,W,58 + top,0x000000,.88).setScrollFactor(0).setDepth(90).setOrigin(0);
+    this.add.rectangle(0,57 + top,W,1.5,0x334466,.9).setScrollFactor(0).setDepth(90).setOrigin(0);
 
-    // Back / menu button
-    const backBtn=this.add.rectangle(28,28,46,32,0x110022,.9).setScrollFactor(0).setDepth(91).setInteractive().setStrokeStyle(1,0x331166,.8);
-    this.add.text(28,28,'←',{fontSize:'16px',color:'#7744aa',fontFamily:'Arial Black'}).setOrigin(.5).setScrollFactor(0).setDepth(92);
-    backBtn.on('pointerdown',()=>{ this.save(); this.cameras.main.fade(280,0,0,0); this.time.delayedCall(280,()=>this.scene.start('Menu')); });
+    addGameButton(this, 32, 28 + top, 44, 36, '←', {dark:0x110022,mid:0x331166,bright:0x7744aa}, ()=>{
+      this.save(); this.cameras.main.fade(280,0,0,0);
+      this.time.delayedCall(280,()=>this.scene.start('Menu'));
+    }).setScrollFactor(0).setDepth(91);
 
-    // Level + Wave badges
     const lv=this.registry.get('level')||1;
-    this.add.rectangle(68,20,46,18,0x1a1400,.9).setScrollFactor(0).setDepth(91).setStrokeStyle(1,0x443300,.7);
-    this.lvTxt=this.add.text(68,20,`LV${lv}`,{fontSize:'11px',fontFamily:'Arial Black',color:'#ffcc44'}).setOrigin(.5).setScrollFactor(0).setDepth(92);
-    this.add.rectangle(68,40,46,16,0x001433,.9).setScrollFactor(0).setDepth(91).setStrokeStyle(1,0x003366,.7);
-    this.add.text(68,40,`W${this.wave}`,{fontSize:'10px',fontFamily:'Arial Black',color:'#4488cc'}).setOrigin(.5).setScrollFactor(0).setDepth(92);
+    const badgeX = 78;
+    this.add.rectangle(badgeX, 18 + top, 48, 18, 0x1a1400,.92).setScrollFactor(0).setDepth(91).setStrokeStyle(1,0x664400,.75);
+    this.lvTxt=this.add.text(badgeX, 18 + top, `LV${lv}`,{fontSize:'11px',fontFamily:RW.FONT,color:'#ffcc44'}).setOrigin(.5).setScrollFactor(0).setDepth(92);
+    this.add.rectangle(badgeX, 40 + top, 48, 16, 0x001433,.92).setScrollFactor(0).setDepth(91).setStrokeStyle(1,0x004488,.75);
+    this.add.text(badgeX, 40 + top, `W${this.wave}`,{fontSize:'10px',fontFamily:RW.FONT,color:'#55aaff'}).setOrigin(.5).setScrollFactor(0).setDepth(92);
 
-    // HP bar (center)
-    this.add.image(W/2,30,'hpBg').setScrollFactor(0).setDepth(91);
-    this.hpFillIm=this.add.image(W/2,30,'hpFill').setScrollFactor(0).setDepth(92).setOrigin(.5);
-    this.hpTxt=this.add.text(W/2,30,`${this.pHP}`,{fontSize:'10px',fontFamily:'Arial Black',color:'#ffffff',stroke:'#000000',strokeThickness:2}).setOrigin(.5).setScrollFactor(0).setDepth(93);
-    this.add.text(W/2-100,19,MECH_DATA[this.mechKey].name,{fontSize:'9px',color:MECH_DATA[this.mechKey].color,fontFamily:'Arial Black'}).setScrollFactor(0).setDepth(93);
+    this.add.image(W/2, 32 + top,'hpBg').setScrollFactor(0).setDepth(91);
+    this.hpFillIm=this.add.image(W/2, 32 + top,'hpFill').setScrollFactor(0).setDepth(92).setOrigin(.5);
+    this.hpTxt=this.add.text(W/2, 32 + top, `${this.pHP}`,{fontSize:'10px',fontFamily:RW.FONT,color:'#ffffff',stroke:'#000000',strokeThickness:2}).setOrigin(.5).setScrollFactor(0).setDepth(93);
+    this.add.text(W/2-100, 20 + top, MECH_DATA[this.mechKey].name,{fontSize:'9px',color:MECH_DATA[this.mechKey].color,fontFamily:RW.FONT}).setScrollFactor(0).setDepth(93);
 
-    // Resources top-right
-    this.add.image(W-54,18,'oil').setScale(1).setScrollFactor(0).setDepth(91);
-    this.oilTxt=this.add.text(W-42,18,`${this.oils}`,{fontSize:'11px',color:'#bbbbbb',fontFamily:'Arial'}).setOrigin(0,.5).setScrollFactor(0).setDepth(91);
-    this.add.image(W-54,38,'nut').setScale(1).setScrollFactor(0).setDepth(91);
-    this.nutTxt=this.add.text(W-42,38,`${this.nuts}`,{fontSize:'11px',color:'#bbbbbb',fontFamily:'Arial'}).setOrigin(0,.5).setScrollFactor(0).setDepth(91);
+    this.oilChip = addCurrencyChip(this, W - 88, 18 + top, 'oil', this.oils, 0x6688aa, 91);
+    this.nutChip = addCurrencyChip(this, W - 88, 42 + top, 'nut', this.nuts, 0xccaa66, 91);
 
     // ── BOTTOM BAR ───────────────────────────────────
-    this.add.rectangle(0,H-118,W,118,0x000000,.82).setScrollFactor(0).setDepth(90).setOrigin(0);
-    this.add.rectangle(0,H-118,W,1.5,0x1a1a44,.9).setScrollFactor(0).setDepth(90).setOrigin(0);
+    this.add.rectangle(0, this.hudBottom, W, H - this.hudBottom, 0x000000,.78).setScrollFactor(0).setDepth(90).setOrigin(0);
+    this.add.rectangle(0, this.hudBottom, W, 1.5, 0x2a3355,.9).setScrollFactor(0).setDepth(90).setOrigin(0);
 
-    // Ammo section (top-right of bottom bar)
-    this.add.text(W-16,H-112,'AMMO',{fontSize:'9px',color:'#334433',fontFamily:'Arial Black'}).setOrigin(1,0).setScrollFactor(0).setDepth(91);
+    this.add.text(W-16, this.hudBottom + 8,'AMMO',{fontSize:'9px',color:'#446655',fontFamily:RW.FONT}).setOrigin(1,0).setScrollFactor(0).setDepth(91);
     this.ammoPips=[];
     for(let i=0;i<3;i++){
-      const p=this.add.image(W-14-(2-i)*40,H-93,'ammoOn').setScrollFactor(0).setDepth(91).setOrigin(1,.5);
+      const p=this.add.image(W-14-(2-i)*40, this.hudBottom + 28,'ammoOn').setScrollFactor(0).setDepth(91).setOrigin(1,.5);
       this.ammoPips.push(p);
     }
 
-    // Fire button (right side) — auto-fires while held so player can shoot while moving
-    const fireBtn=this.add.image(W-44,H-58,'fireBtn').setScrollFactor(0).setDepth(91).setInteractive().setScale(1.05);
-    this._fireHeld=false;
-    this._fireTimer=null;
-    fireBtn.on('pointerdown',()=>{
+    // Fire button — glass ring + press feedback
+    const fireY = this.hudBottom + 68;
+    this.fireBtn = this.add.image(W-46, fireY,'fireBtn').setScrollFactor(0).setDepth(91).setInteractive({ useHandCursor: true }).setScale(0.92);
+    this._fireHeld=false; this._fireTimer=null;
+    const firePress = () => { this.fireBtn.setScale(0.86); this.fireBtn.setAlpha(0.85); };
+    const fireRelease = () => { this.fireBtn.setScale(0.92); this.fireBtn.setAlpha(1); };
+    this.fireBtn.on('pointerdown',()=>{
+      firePress();
       this._fireHeld=true;
       this.shoot();
       this._fireTimer=this.time.addEvent({delay:280,callback:()=>{ if(this._fireHeld) this.shoot(); },loop:true});
     });
-    fireBtn.on('pointerup',  ()=>{ this._fireHeld=false; if(this._fireTimer){this._fireTimer.remove();this._fireTimer=null;} });
-    fireBtn.on('pointerout', ()=>{ this._fireHeld=false; if(this._fireTimer){this._fireTimer.remove();this._fireTimer=null;} });
+    this.fireBtn.on('pointerup',  ()=>{ fireRelease(); this._fireHeld=false; if(this._fireTimer){this._fireTimer.remove();this._fireTimer=null;} });
+    this.fireBtn.on('pointerout', ()=>{ fireRelease(); this._fireHeld=false; if(this._fireTimer){this._fireTimer.remove();this._fireTimer=null;} });
 
-    // Super bar (above super button)
-    this.add.image(W/2-40,H-108,'sBg').setScrollFactor(0).setDepth(91).setScale(.85,1);
-    this.sFillIm=this.add.image(W/2-40,H-108,'sFill').setScrollFactor(0).setDepth(92).setScale(.0001,1).setOrigin(.5);
-    this.add.text(W/2-40,H-108,'SUPER',{fontSize:'8px',color:'#224466',fontFamily:'Arial Black'}).setOrigin(.5).setScrollFactor(0).setDepth(93);
+    // Super bar
+    const superBarY = this.hudBottom + 12;
+    this.add.image(W/2-36, superBarY,'sBg').setScrollFactor(0).setDepth(91).setScale(.82,1);
+    this.sFillIm=this.add.image(W/2-36, superBarY,'sFill').setScrollFactor(0).setDepth(92).setScale(.0001,1).setOrigin(.5);
+    this.superBarLbl = this.add.text(W/2-36, superBarY, this.superUnlocked ? 'SUPER' : 'SUPER · LV10', {
+      fontSize:'8px', color: this.superUnlocked ? '#336688' : '#443355', fontFamily:RW.FONT
+    }).setOrigin(.5).setScrollFactor(0).setDepth(93);
 
     // Super button
-    this.superBtnImg=this.add.image(W-44,H-20,'superBtn').setScrollFactor(0).setDepth(91).setScale(.52).setInteractive();
-    this.add.text(W-44,H-6,'SUPER',{fontSize:'8px',color:'#224488',fontFamily:'Arial Black'}).setOrigin(.5,1).setScrollFactor(0).setDepth(92);
-    this.superBtnImg.on('pointerdown',()=>this.activateSuper());
+    const superY = this.hudBottom + 96;
+    const superTex = this.superUnlocked ? 'superBtn' : 'superBtnLocked';
+    this.superBtnImg=this.add.image(W-46, superY, superTex).setScrollFactor(0).setDepth(91).setScale(.54).setInteractive({ useHandCursor: true });
+    this.superGlow = this.add.circle(W-46, superY, 34, RW.PINK, 0).setScrollFactor(0).setDepth(90);
+    this.superLbl = this.add.text(W-46, superY + 22, this.superUnlocked ? 'SUPER' : 'LV10', {
+      fontSize:'8px', color: this.superUnlocked ? '#4488cc' : '#444466', fontFamily:RW.FONT
+    }).setOrigin(.5,0).setScrollFactor(0).setDepth(92);
+    this.superBtnImg.on('pointerdown',()=>{
+      if (!this.superUnlocked) {
+        floatJuice(this, W-46, superY - 40, 'UNLOCK AT LV10', '#8866aa', 12, true);
+        this.tweens.add({ targets: this.superBtnImg, angle: { from: -6, to: 6 }, duration: 50, yoyo: true, repeat: 3 });
+        return;
+      }
+      this.superBtnImg.setScale(0.48);
+      this.activateSuper();
+      this.time.delayedCall(120, () => this.superBtnImg.setScale(0.54));
+    });
+    this._superPulsing = false;
   }
 
   // ── Joystick ─────────────────────────────────────────────────
   buildJoystick() {
-    this.jBase=this.add.image(78,H-64,'jBase').setScrollFactor(0).setDepth(90).setAlpha(.72);
-    this.jThumb=this.add.image(78,H-64,'jThumb').setScrollFactor(0).setDepth(91).setAlpha(.88);
-    this.jActive=false; this.jDir={x:0,y:0}; this.jCenter={x:78,y:H-64};
-    const R=38;
+    const jY = this.hudBottom + 68;
+    this.jBase=this.add.image(82, jY,'jBase').setScrollFactor(0).setDepth(90).setAlpha(.68).setScale(0.88);
+    this.jThumb=this.add.image(82, jY,'jThumb').setScrollFactor(0).setDepth(91).setAlpha(.82).setScale(0.88);
+    this.jActive=false; this.jDir={x:0,y:0}; this.jCenter={x:82,y:jY};
+    const R=36;
     this.input.on('pointerdown',p=>{
-      if(p.x<W*.52){ this.jActive=true; this.jCenter={x:p.x,y:p.y}; this.jBase.setPosition(p.x,p.y); this.jThumb.setPosition(p.x,p.y); }
+      if(p.x<W*.5 && p.y > this.hudBottom){ this.jActive=true; this.jCenter={x:p.x,y:p.y}; this.jBase.setPosition(p.x,p.y); this.jThumb.setPosition(p.x,p.y); }
     });
     this.input.on('pointermove',p=>{
-      if(!this.jActive||p.x>=W*.52) return;
+      if(!this.jActive||p.x>=W*.5||p.y <= this.hudBottom) return;
       const dx=p.x-this.jCenter.x, dy=p.y-this.jCenter.y, dist=Math.hypot(dx,dy)||.001;
       const c=Math.min(dist,R), ang=Math.atan2(dy,dx);
       this.jThumb.setPosition(this.jCenter.x+Math.cos(ang)*c, this.jCenter.y+Math.sin(ang)*c);
       this.jDir.x=(dx/dist)*Math.min(1,dist/R); this.jDir.y=(dy/dist)*Math.min(1,dist/R);
     });
-    this.input.on('pointerup',p=>{ if(p.x<W*.52){ this.jActive=false; this.jDir={x:0,y:0}; this.jThumb.setPosition(this.jCenter.x,this.jCenter.y); }});
+    this.input.on('pointerup',p=>{ if(p.x<W*.5){ this.jActive=false; this.jDir={x:0,y:0}; this.jThumb.setPosition(this.jCenter.x,this.jCenter.y); }});
     this.keys=this.input.keyboard.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,SPACE');
   }
 
@@ -1131,15 +1346,23 @@ class TrainingScene extends Phaser.Scene {
       if(b.x<0||b.x>900||b.y<0||b.y>900) b.destroy();
     });
 
-    this.superBtnImg.setTint(this.superCharge>=100?0x00ddff:0xffffff);
-    // pulse super button when ready
-    if(this.superCharge>=100 && !this._superPulsing){
-      this._superPulsing=true;
-      this.tweens.add({targets:this.superBtnImg,scaleX:.58,scaleY:.58,duration:400,yoyo:true,repeat:-1,ease:'Sine.easeInOut'});
-    } else if(this.superCharge<100 && this._superPulsing){
-      this._superPulsing=false;
-      this.tweens.killTweensOf(this.superBtnImg);
-      this.superBtnImg.setScale(.52);
+    if (this.superUnlocked) {
+      const ready = this.superCharge >= 100;
+      this.superBtnImg.setTexture(ready ? 'superBtnReady' : 'superBtn');
+      this.superBtnImg.setTint(ready ? 0xffffff : 0x8899aa);
+      this.superBtnImg.setAlpha(ready ? 1 : 0.75);
+      if (ready && !this._superPulsing) {
+        this._superPulsing = true;
+        this.tweens.add({ targets: this.superBtnImg, scaleX: 0.6, scaleY: 0.6, duration: 450, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+        this.tweens.add({ targets: this.superGlow, alpha: { from: 0.08, to: 0.28 }, scale: { from: 0.9, to: 1.15 }, duration: 450, yoyo: true, repeat: -1 });
+      } else if (!ready && this._superPulsing) {
+        this._superPulsing = false;
+        this.tweens.killTweensOf(this.superBtnImg);
+        this.tweens.killTweensOf(this.superGlow);
+        this.superBtnImg.setScale(0.54);
+        this.superGlow.setAlpha(0);
+        this.superGlow.setScale(1);
+      }
     }
   }
 
@@ -1151,11 +1374,13 @@ class TrainingScene extends Phaser.Scene {
     const ang=tgt ? Phaser.Math.Angle.Between(this.player.x,this.player.y,tgt.x,tgt.y) : (this.player.flipX?Math.PI:0);
     const b=this.bullets.create(this.player.x,this.player.y,'bullet').setDepth(9);
     b.setVelocity(Math.cos(ang)*320,Math.sin(ang)*320);
-    this.superCharge=Math.min(100,this.superCharge+6); this.refreshSuperBar();
+    if (this.superUnlocked) {
+      this.superCharge=Math.min(100,this.superCharge+6); this.refreshSuperBar();
+    }
   }
 
   activateSuper() {
-    if(this.superCharge<100||!this.alive) return;
+    if(!this.superUnlocked || this.superCharge<100||!this.alive) return;
     this.superCharge=0; this.refreshSuperBar(); this._superPulsing=false;
     this.cameras.main.shake(320,.012);
 
@@ -1217,13 +1442,16 @@ class TrainingScene extends Phaser.Scene {
     enemy.hp-=dmg;
     this.float(enemy.x,enemy.y-22,`-${dmg}`,isBig?'#ff8800':'#ffff44',isBig?18:14);
     bullet.destroy();
-    this.superCharge=Math.min(100,this.superCharge+(isBig?4:7)); this.refreshSuperBar();
+    if (this.superUnlocked) {
+      this.superCharge=Math.min(100,this.superCharge+(isBig?4:7)); this.refreshSuperBar();
+    }
     if(enemy.hp<=0){
       if(enemy.hpGfx) enemy.hpGfx.destroy();
       const r=isBig?this.bigReward:this.normalReward;
       this.oils+=r.oil; this.nuts+=r.nut;
       this.earnedOils+=r.oil; this.earnedNuts+=r.nut;
-      this.oilTxt.setText(`${this.oils}`); this.nutTxt.setText(`${this.nuts}`);
+      this.oilChip.getData('setValue')(this.oils);
+      this.nutChip.getData('setValue')(this.nuts);
       this.float(enemy.x,enemy.y-48,`+${r.oil} oils  +${r.nut} nuts`,isBig?'#ff8800':'#aaffaa',isBig?15:12);
       if(isBig){ this.cameras.main.shake(420,.016); this.cameras.main.flash(280,255,100,0); }
       this.checkLevelUp(); enemy.destroy(); this.save(); this.checkAllClear();
@@ -1268,9 +1496,18 @@ class TrainingScene extends Phaser.Scene {
   }
 
   refreshSuperBar() {
+    if (!this.superUnlocked) return;
     const pct=Math.max(.0001,this.superCharge/100);
-    this.sFillIm.setScale(.85*pct,1);
-    this.sFillIm.setX(W/2-40-80*.85*(1-pct));
+    this.sFillIm.setScale(.82*pct,1);
+    this.sFillIm.setX(W/2-36-80*.82*(1-pct));
+  }
+
+  unlockSuperUI() {
+    this.superUnlocked = true;
+    this.superBtnImg.setTexture('superBtn');
+    this.superLbl.setText('SUPER').setColor('#4488cc');
+    this.superBarLbl.setText('SUPER').setColor('#336688');
+    floatJuice(this, W-46, this.superBtnImg.y - 50, 'SUPER ONLINE!', '#00ccff', 16, true);
   }
 
   checkLevelUp() {
@@ -1280,9 +1517,10 @@ class TrainingScene extends Phaser.Scene {
     this.registry.set('level',newLv);
     this.lvTxt.setText(`LV${newLv}`);
     this.pMaxHP=Math.round(this.pMaxHP*1.1); this.pHP=this.pMaxHP; this.refreshHP();
-    this.float(W/2,H/2-60,`LEVEL UP!  LV ${newLv}`,'#ffcc00',30);
+    floatJuice(this, W/2, H/2-60, `LEVEL UP! LV ${newLv}`, '#ffcc00', 28, true);
     this.cameras.main.flash(500,255,200,0);
-    if(newLv>=10) this.float(W/2,H/2-95,'MAX LEVEL! SUPER CHARGED!','#00ffff',20);
+    if(newLv>=10 && !this.superUnlocked) this.unlockSuperUI();
+    else if(newLv>=10) floatJuice(this, W/2, H/2-95, 'MAX LEVEL! SUPER CHARGED!', '#00ffff', 18, true);
   }
 
   checkAllClear() {
@@ -1366,10 +1604,7 @@ class TrainingScene extends Phaser.Scene {
   }
 
   float(x,y,msg,color,size=14) {
-    const sx=x-this.cameras.main.scrollX, sy=y-this.cameras.main.scrollY;
-    const t=this.add.text(sx,sy,msg,{fontSize:`${size}px`,color,fontFamily:'Arial Black',stroke:'#000000',strokeThickness:3})
-      .setScrollFactor(0).setDepth(200).setOrigin(.5);
-    this.tweens.add({targets:t,y:sy-54,alpha:0,duration:1300,ease:'Power2',onComplete:()=>t.destroy()});
+    floatJuice(this, x, y, msg, color, size, false);
   }
 
   save() {
@@ -1385,11 +1620,16 @@ class TrainingScene extends Phaser.Scene {
 new Phaser.Game({
   type: Phaser.AUTO,
   width: W, height: H,
+  parent: 'game-shell',
   backgroundColor: '#030318',
   input: { activePointers: 3 },
   physics: { default:'arcade', arcade:{ gravity:{y:0}, debug:false } },
   scene: [BootScene, StoryScene, IntroScene, MenuScene, RobotRoadScene, TrainingScene],
-  scale: { mode:Phaser.Scale.FIT, autoCenter:Phaser.Scale.CENTER_BOTH }
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+    orientation: Phaser.Scale.Orientation.PORTRAIT
+  }
 });
 </script>
 </body>
