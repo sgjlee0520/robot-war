@@ -18,6 +18,12 @@ canvas { display:block; margin:auto; }
 <script>
 const W = 360, H = 640;
 
+const MECH_DATA = {
+  og:    { name:'OG',    hp:5200, color:'#00ff88', superName:'Omni-Wave Burst' },
+  roby:  { name:'ROBY',  hp:3900, color:'#ff2244', superName:'Laser Cross' },
+  mechy: { name:'MECHY', hp:4500, color:'#00ccff', superName:'Missile Barrage' },
+};
+
 // ═══════════════════════════════════════════════════════════════
 // BOOT  –  generates every texture, then routes to correct scene
 // ═══════════════════════════════════════════════════════════════
@@ -755,7 +761,7 @@ class MenuScene extends Phaser.Scene {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// ROBOT ROAD  –  mech collection screen
+// ROBOT ROAD  –  mech collection + selection screen
 // ═══════════════════════════════════════════════════════════════
 class RobotRoadScene extends Phaser.Scene {
   constructor() { super('RobotRoad'); }
@@ -772,51 +778,116 @@ class RobotRoadScene extends Phaser.Scene {
     this.add.image(22,44,'nut').setScale(1.1);
     this.add.text(36,44,`${nuts} nuts`,{fontSize:'12px',color:'#888899',fontFamily:'Arial'}).setOrigin(0,.5);
 
+    // Instruction hint
+    this.add.text(W/2,44,'Tap a mech to select it',{fontSize:'10px',color:'#333355',fontFamily:'Arial'}).setOrigin(.5,.5);
+
     const mechs=[
-      {key:'og',   name:'OG',    sub:'The Last Survivor', hp:5200, maxLvHp:9100, super:'Omni-Wave Burst',   cost:0,  unlocked:true},
-      {key:'roby', name:'ROBY',  sub:'The Brawler',       hp:3900, maxLvHp:7200, super:'Laser Cross (left eye)', cost:15, unlocked:nuts>=15},
-      {key:'mechy',name:'MECHY', sub:'The Engineer',      hp:4500, maxLvHp:8200, super:'Missile Barrage',   cost:30, unlocked:nuts>=30},
+      {key:'og',   name:'OG',    sub:'The Last Survivor', hp:5200, maxLvHp:9100, superDesc:'Omni-Wave Burst — 8 energy bolts', cost:0,  unlocked:true},
+      {key:'roby', name:'ROBY',  sub:'The Brawler',       hp:3900, maxLvHp:7200, superDesc:'Laser Cross — fires from left eye', cost:15, unlocked:nuts>=15},
+      {key:'mechy',name:'MECHY', sub:'The Engineer',      hp:4500, maxLvHp:8200, superDesc:'Missile Barrage — locks onto enemies', cost:30, unlocked:nuts>=30},
     ];
 
+    // Track selection state
+    let selected = this.registry.get('selectedRobot') || 'og';
+    const cardBorders = {};
+    const selBadges   = {};
+
+    const refresh = () => {
+      mechs.forEach(m => {
+        if (!cardBorders[m.key]) return;
+        const isSel = m.key === selected;
+        cardBorders[m.key].setStrokeStyle(isSel ? 2.5 : 1.5, isSel ? 0x00ff88 : 0x3322aa, isSel ? 1 : .7);
+        if (selBadges[m.key]) {
+          selBadges[m.key].setText(isSel ? '★  ACTIVE' : 'TAP TO SELECT');
+          selBadges[m.key].setColor(isSel ? '#00ff88' : '#334433');
+        }
+      });
+    };
+
     mechs.forEach((m,i)=>{
-      const cy=124+i*160;
+      const cy=128+i*163;
       const locked=!m.unlocked;
-      // card bg
-      this.add.rectangle(W/2,cy,W-24,140,locked?0x06060e:0x09091e).setStrokeStyle(1.5,locked?0x1a1a2e:0x3322aa,.9);
-      // left: robot portrait box
-      this.add.rectangle(62,cy,96,110,locked?0x04040c:0x0d0d28).setStrokeStyle(1,locked?0x111122:0x221166,.8);
-      const rob=this.add.image(62,cy+4,m.key).setScale(1.9);
-      if(locked) rob.setTint(0x1a1a33);
-      // right: info
-      this.add.text(122,cy-50,m.name,{fontSize:'20px',fontFamily:'Arial Black',color:locked?'#2a2a44':'#00ff88'});
-      this.add.text(122,cy-26,m.sub,{fontSize:'11px',color:locked?'#222233':'#6677aa',fontFamily:'Arial'});
-      if(!locked){
-        this.add.text(122,cy-8,`HP: ${m.hp}  →  ${m.maxLvHp} (LV10)`,{fontSize:'11px',color:'#446644',fontFamily:'Arial'});
-        this.add.text(122,cy+12,`SUPER: ${m.super}`,{fontSize:'10px',color:'#4466aa',fontFamily:'Arial',wordWrap:{width:210}});
-        // HP mini bar
-        this.add.rectangle(122,cy+46,208,7,0x0a1a0a).setOrigin(0,.5);
-        this.add.rectangle(122,cy+46,Math.round(208*(m.hp/m.maxLvHp)),7,0x00aa44).setOrigin(0,.5);
-        this.add.text(W-18,cy+46,'✓ UNLOCKED',{fontSize:'10px',fontFamily:'Arial Black',color:'#00cc44'}).setOrigin(1,.5);
+      const isSel = m.key === selected;
+
+      // Card background
+      const cardBg = this.add.rectangle(W/2,cy,W-24,144,locked?0x06060e:0x09091e);
+      const border = this.add.rectangle(W/2,cy,W-24,144,0x000000,0)
+        .setStrokeStyle(isSel?2.5:1.5, locked?0x1a1a2e:(isSel?0x00ff88:0x3322aa), locked?.5:1);
+      if (!locked) cardBorders[m.key] = border;
+
+      // Active glow behind selected card
+      if (isSel && !locked) {
+        this.add.rectangle(W/2,cy,W-24,144,0x00ff88,.04);
+      }
+
+      // Portrait box (left)
+      this.add.rectangle(62,cy,96,114,locked?0x04040c:0x0d0d28).setStrokeStyle(1,locked?0x111122:0x221166,.8);
+      const rob=this.add.image(62,cy+4,m.key).setScale(1.85);
+      if (locked) rob.setTint(0x1a1a33);
+
+      // Info (right)
+      this.add.text(122,cy-52,m.name,{fontSize:'20px',fontFamily:'Arial Black',color:locked?'#2a2a44':MECH_DATA[m.key].color});
+      this.add.text(122,cy-28,m.sub,{fontSize:'11px',color:locked?'#222233':'#6677aa',fontFamily:'Arial'});
+
+      if (!locked) {
+        this.add.text(122,cy-9,`HP: ${m.hp} → ${m.maxLvHp}`,{fontSize:'10px',color:'#335533',fontFamily:'Arial'});
+        this.add.text(122,cy+8,`SUPER: ${m.superDesc}`,{fontSize:'9px',color:'#334466',fontFamily:'Arial',wordWrap:{width:212}});
+
+        // HP bar
+        this.add.rectangle(122,cy+40,212,6,0x081208).setOrigin(0,.5);
+        this.add.rectangle(122,cy+40,Math.round(212*(m.hp/m.maxLvHp)),6,0x008833).setOrigin(0,.5);
+
+        // Selection badge
+        const badge = this.add.text(W-14,cy+54,isSel?'★  ACTIVE':'TAP TO SELECT',{
+          fontSize:'10px', fontFamily:'Arial Black', color:isSel?'#00ff88':'#334433'
+        }).setOrigin(1,1);
+        selBadges[m.key] = badge;
+
+        // Hit area (entire card is tappable)
+        const hit = this.add.rectangle(W/2,cy,W-24,144,0x000000,0).setInteractive();
+        hit.on('pointerdown',()=>{
+          selected = m.key;
+          this.registry.set('selectedRobot', m.key);
+          refresh();
+          this.cameras.main.flash(180,0,180,80);
+          this.float(W/2, cy-50, `${m.name} selected!`, MECH_DATA[m.key].color, 16);
+        });
       } else {
-        this.add.image(122,cy+12,'nut').setScale(1.1);
-        this.add.text(138,cy+12,`${m.cost} nuts to unlock`,{fontSize:'12px',color:'#554433',fontFamily:'Arial'}).setOrigin(0,.5);
-        this.add.text(W-18,cy+46,'🔒 LOCKED',{fontSize:'10px',fontFamily:'Arial Black',color:'#332244'}).setOrigin(1,.5);
+        // Locked: show cost
+        this.add.image(122,cy+16,'nut').setScale(1.1);
+        this.add.text(138,cy+16,`${m.cost} nuts to unlock`,{fontSize:'12px',color:'#554433',fontFamily:'Arial'}).setOrigin(0,.5);
+        this.add.text(W-14,cy+54,'LOCKED',{fontSize:'10px',fontFamily:'Arial Black',color:'#2a1a3a'}).setOrigin(1,1);
       }
     });
 
-    // Monthly release note
-    this.add.rectangle(W/2,H-60,W-24,40,0x08080c).setStrokeStyle(1,0x1a1a33);
-    this.add.text(W/2,H-60,'New mechs drop monthly — stay tuned!',{fontSize:'11px',color:'#333355',fontFamily:'Arial'}).setOrigin(.5);
+    // Bottom bar
+    this.add.rectangle(0,H-52,W,52,0x000000,.8).setOrigin(0);
+    this.add.rectangle(0,H-52,W,1,0x1a1a33).setOrigin(0);
+
+    // PLAY WITH SELECTED button
+    const playBtn = this.add.rectangle(W/2-50,H-26,170,36,0x003311).setInteractive().setStrokeStyle(1.5,0x00aa44,.8);
+    this.add.text(W/2-50,H-26,'▶ PLAY',{fontSize:'15px',fontFamily:'Arial Black',color:'#00ff88'}).setOrigin(.5);
+    playBtn.on('pointerover',()=>playBtn.setFillStyle(0x004422));
+    playBtn.on('pointerout', ()=>playBtn.setFillStyle(0x003311));
+    playBtn.on('pointerdown',()=>{
+      this.cameras.main.fade(250,0,0,0);
+      this.time.delayedCall(250,()=>this.scene.start('Training'));
+    });
 
     // Back button
-    const back=this.add.rectangle(50,H-18,80,30,0x110033,.9).setInteractive().setStrokeStyle(1,0x441188,.8);
-    this.add.text(50,H-18,'← BACK',{fontSize:'12px',fontFamily:'Arial Black',color:'#9966cc'}).setOrigin(.5);
+    const back = this.add.rectangle(W-50,H-26,80,36,0x110033,.9).setInteractive().setStrokeStyle(1,0x441188,.8);
+    this.add.text(W-50,H-26,'← BACK',{fontSize:'12px',fontFamily:'Arial Black',color:'#9966cc'}).setOrigin(.5);
     back.on('pointerdown',()=>{
       this.cameras.main.fade(220,0,0,0);
       this.time.delayedCall(220,()=>this.scene.start('Menu'));
     });
 
     this.cameras.main.fadeIn(300);
+  }
+
+  float(x,y,msg,color,size=14) {
+    const t=this.add.text(x,y,msg,{fontSize:`${size}px`,color,fontFamily:'Arial Black',stroke:'#000000',strokeThickness:3}).setOrigin(.5);
+    this.tweens.add({targets:t, y:y-40, alpha:0, duration:1100, ease:'Power2', onComplete:()=>t.destroy()});
   }
 }
 
@@ -866,9 +937,11 @@ class TrainingScene extends Phaser.Scene {
 
   // ── Player ───────────────────────────────────────────────────
   spawnPlayer(WW,WH) {
-    this.player=this.physics.add.sprite(WW/2,WH/2,'og').setDepth(10).setCollideWorldBounds(true);
+    this.mechKey = this.registry.get('selectedRobot') || 'og';
+    const data = MECH_DATA[this.mechKey];
+    this.player=this.physics.add.sprite(WW/2,WH/2,this.mechKey).setDepth(10).setCollideWorldBounds(true);
     this.physics.add.collider(this.player,this.walls);
-    this.pHP=5200; this.pMaxHP=5200;
+    this.pHP=data.hp; this.pMaxHP=data.hp;
     this.ammo=3; this.maxAmmo=3;
     this.superCharge=0; this.alive=true;
     this.bullets=this.physics.add.group();
@@ -914,7 +987,7 @@ class TrainingScene extends Phaser.Scene {
     this.add.image(W/2,30,'hpBg').setScrollFactor(0).setDepth(91);
     this.hpFillIm=this.add.image(W/2,30,'hpFill').setScrollFactor(0).setDepth(92).setOrigin(.5);
     this.hpTxt=this.add.text(W/2,30,`${this.pHP}`,{fontSize:'10px',fontFamily:'Arial Black',color:'#ffffff',stroke:'#000000',strokeThickness:2}).setOrigin(.5).setScrollFactor(0).setDepth(93);
-    this.hpNameTxt=this.add.text(W/2-100,19,'OG',{fontSize:'9px',color:'#44aa66',fontFamily:'Arial Black'}).setScrollFactor(0).setDepth(93);
+    this.add.text(W/2-100,19,MECH_DATA[this.mechKey].name,{fontSize:'9px',color:MECH_DATA[this.mechKey].color,fontFamily:'Arial Black'}).setScrollFactor(0).setDepth(93);
 
     // Resources top-right
     this.add.image(W-54,18,'oil').setScale(1).setScrollFactor(0).setDepth(91);
@@ -1020,15 +1093,48 @@ class TrainingScene extends Phaser.Scene {
   activateSuper() {
     if(this.superCharge<100||!this.alive) return;
     this.superCharge=0; this.refreshSuperBar(); this._superPulsing=false;
-    this.cameras.main.flash(220,0,160,80);
     this.cameras.main.shake(320,.012);
-    for(let d=0;d<360;d+=45){
-      const r=Phaser.Math.DegToRad(d);
-      const b=this.bullets.create(this.player.x,this.player.y,'sBullet').setDepth(9).setScale(1.4);
-      b.setVelocity(Math.cos(r)*360,Math.sin(r)*360);
-      b.isSuperBullet=true;
+
+    if (this.mechKey === 'og') {
+      // ── OG: 8-direction energy burst ──────────────────────────
+      this.cameras.main.flash(220,0,200,100);
+      for(let d=0;d<360;d+=45){
+        const r=Phaser.Math.DegToRad(d);
+        const b=this.bullets.create(this.player.x,this.player.y,'sBullet').setDepth(9).setScale(1.4);
+        b.setVelocity(Math.cos(r)*360,Math.sin(r)*360);
+        b.isSuperBullet=true;
+      }
+      this.float(this.player.x,this.player.y-62,'OMNI WAVE!','#00ffff',28);
+
+    } else if (this.mechKey === 'roby') {
+      // ── ROBY: laser cross from left eye (N/S/E/W fast beams) ──
+      this.cameras.main.flash(220,255,20,60);
+      [0,90,180,270].forEach(deg=>{
+        const r=Phaser.Math.DegToRad(deg);
+        const b=this.bullets.create(this.player.x,this.player.y,'sBullet').setDepth(9).setScale(2.2,.55);
+        b.setVelocity(Math.cos(r)*520,Math.sin(r)*520);
+        b.setTint(0xff1133);
+        b.isSuperBullet=true;
+      });
+      this.float(this.player.x,this.player.y-62,'LASER CROSS!','#ff2244',28);
+
+    } else if (this.mechKey === 'mechy') {
+      // ── MECHY: missile barrage — one missile per enemy ─────────
+      this.cameras.main.flash(220,0,120,255);
+      const targets=[...this.dummies.getChildren(),...this.shooters.getChildren(),...this.bigs.getChildren()].filter(e=>e.active);
+      const fireAt=(ang)=>{
+        const b=this.bullets.create(this.player.x,this.player.y,'sBullet').setDepth(9).setScale(1.3);
+        b.setVelocity(Math.cos(ang)*440,Math.sin(ang)*440);
+        b.setTint(0x00aaff);
+        b.isSuperBullet=true;
+      };
+      if(targets.length>0){
+        targets.forEach(tgt=>fireAt(Phaser.Math.Angle.Between(this.player.x,this.player.y,tgt.x,tgt.y)));
+      } else {
+        for(let d=0;d<360;d+=45) fireAt(Phaser.Math.DegToRad(d));
+      }
+      this.float(this.player.x,this.player.y-62,'MISSILE BARRAGE!','#00ccff',24);
     }
-    this.float(this.player.x,this.player.y-60,'SUPER WAVE!','#00ffff',28);
   }
 
   enemyShoot() {
