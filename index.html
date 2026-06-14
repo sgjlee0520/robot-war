@@ -1016,20 +1016,12 @@ class RobotRoadScene extends Phaser.Scene {
       const barFill = this.add.rectangle(-110, 152, fillW, 8, 0x00aa44).setOrigin(0, 0.5);
       card.add([barBg, barFill]);
 
-      card.setData('badge', this.add.text(0, 178, 'TAP CARD TO SELECT', {
-        fontSize:'10px', fontFamily:RW.FONT, color:'#445566'
-      }).setOrigin(.5));
-      card.add(card.getData('badge'));
-
-      const hit = this.add.rectangle(0, 40, 284, 280, 0, 0).setInteractive({ useHandCursor: true });
-      hit.on('pointerdown', () => {
-        if (this.carouselIndex !== this.mechs.indexOf(m)) { this.snapTo(this.mechs.indexOf(m)); return; }
-        this.registry.set('selectedRobot', m.key);
-        this.refreshBadges();
-        this.cameras.main.flash(160, 0, 180, 80);
-        floatJuice(this, W/2, this.carouselY - 120, `${m.name} ACTIVE`, MECH_DATA[m.key].color, 18, true);
-      });
-      card.add(hit);
+      // Selected indicator — updated by refreshSelectBtn()
+      const badge = this.add.text(0, 178, '', {
+        fontSize:'10px', fontFamily:RW.FONT, color:'#00ff88'
+      }).setOrigin(.5);
+      card.setData('badge', badge);
+      card.add(badge);
     } else {
       card.add(this.add.image(-40, 108, 'nut').setScale(1.2));
       card.add(this.add.text(8, 108, `${m.cost} nuts to unlock`, {
@@ -1056,14 +1048,41 @@ class RobotRoadScene extends Phaser.Scene {
     const footY = H - 56 - this.safe.bottom;
     this.add.rectangle(0, footY - 8, W, 64 + this.safe.bottom, 0x000000, 0.88).setOrigin(0);
     this.add.rectangle(0, footY - 8, W, 1.5, 0x2a2a55, 0.85).setOrigin(0);
-    addGameButton(this, W/2 - 58, footY + 18, 168, 44, '▶ PLAY', {dark:0x003318,mid:0x00aa44,bright:0x00ff77}, ()=>{
+
+    // BACK (far left)
+    addGameButton(this, 36, footY + 18, 56, 44, '←', {dark:0x110033,mid:0x5522aa,bright:0x9966ff}, ()=>{
+      this.cameras.main.fade(220,0,0,0);
+      this.time.delayedCall(220,()=>this.scene.start('Menu'));
+    });
+
+    // SELECT (center) — plain rect so scrollFactor works correctly
+    this.selectBtnBg = this.add.rectangle(W/2, footY + 18, 148, 44, 0x003311, 0.92)
+      .setStrokeStyle(2, 0x00cc44, 0.85).setInteractive({ useHandCursor:true }).setDepth(1);
+    this.selectBtnTxt = this.add.text(W/2, footY + 18, 'SELECT', {
+      fontSize:'18px', fontFamily:RW.FONT, color:'#ffffff', stroke:'#000000', strokeThickness:3
+    }).setOrigin(0.5).setDepth(2);
+    this.selectBtnBg.on('pointerover',  ()=>{ if(!this._selectIsActive) this.selectBtnBg.setFillStyle(0x006633, 0.95); });
+    this.selectBtnBg.on('pointerout',   ()=>{ if(!this._selectIsActive) this.selectBtnBg.setFillStyle(0x003311, 0.92); });
+    this.selectBtnBg.on('pointerdown',  ()=>this.selectBtnBg.setScale(0.95));
+    this.selectBtnBg.on('pointerup', () => {
+      this.selectBtnBg.setScale(1);
+      const m = this.mechs[this.carouselIndex];
+      if (!m || !m.unlocked) return;
+      this.registry.set('selectedRobot', m.key);
+      saveProgress(this.registry);
+      this.refreshSelectBtn();
+      this.cameras.main.flash(180, 0, 180, 80);
+      floatJuice(this, W/2, this.carouselY - 100, `${m.name} SELECTED!`, MECH_DATA[m.key].color, 20, true);
+    });
+
+    // PLAY (far right)
+    addGameButton(this, W - 44, footY + 18, 68, 44, '▶', {dark:0x003318,mid:0x00aa44,bright:0x00ff77}, ()=>{
       this.cameras.main.fade(250,0,0,0);
       this.time.delayedCall(250,()=>this.scene.start('Training'));
     });
-    addGameButton(this, W - 52, footY + 18, 88, 44, 'BACK', {dark:0x110033,mid:0x5522aa,bright:0x9966ff}, ()=>{
-      this.cameras.main.fade(220,0,0,0);
-      this.time.delayedCall(220,()=>this.scene.start('Menu'));
-    }, 0);
+
+    this._selectIsActive = false;
+    this.refreshSelectBtn();
   }
 
   snapTo(index, animate = true) {
@@ -1073,12 +1092,12 @@ class RobotRoadScene extends Phaser.Scene {
       this.tweens.add({
         targets: this.track, x: targetX, duration: 320, ease: 'Cubic.easeOut',
         onUpdate: () => this.updateCardScales(),
-        onComplete: () => this.refreshBadges()
+        onComplete: () => this.refreshSelectBtn()
       });
     } else {
       this.track.x = targetX;
       this.updateCardScales();
-      this.refreshBadges();
+      this.refreshSelectBtn();
     }
     this.dots.forEach((d, i) => {
       d.setFillStyle(i === this.carouselIndex ? RW.PINK : 0x334455, i === this.carouselIndex ? 1 : 0.55);
@@ -1097,15 +1116,31 @@ class RobotRoadScene extends Phaser.Scene {
     });
   }
 
-  refreshBadges() {
+  refreshSelectBtn() {
+    if (!this.selectBtnBg) return;
     const selected = this.registry.get('selectedRobot') || 'og';
-    this.cards.forEach((card, i) => {
+    const m = this.mechs[this.carouselIndex];
+    const isActive = m && m.key === selected;
+    const isLocked = m && !m.unlocked;
+    this._selectIsActive = isActive;
+
+    if (isActive) {
+      this.selectBtnBg.setFillStyle(0x002200, 0.92).setStrokeStyle(2, 0x00ff88, 1);
+      this.selectBtnTxt.setText('★ SELECTED').setColor('#00ff88');
+    } else if (isLocked) {
+      this.selectBtnBg.setFillStyle(0x110011, 0.92).setStrokeStyle(2, 0x441144, 0.5);
+      this.selectBtnTxt.setText('LOCKED').setColor('#443355');
+    } else {
+      this.selectBtnBg.setFillStyle(0x003311, 0.92).setStrokeStyle(2, 0x00cc44, 0.85);
+      this.selectBtnTxt.setText('SELECT').setColor('#ffffff');
+    }
+
+    // Update card badges
+    this.cards.forEach(card => {
       const badge = card.getData('badge');
       if (!badge) return;
       const key = card.getData('mechKey');
-      const active = key === selected && i === this.carouselIndex;
-      badge.setText(active ? '★ ACTIVE MECH' : 'TAP CARD TO SELECT');
-      badge.setColor(active ? '#00ff88' : '#445566');
+      badge.setText(key === selected ? '★ ACTIVE' : '');
     });
   }
 }
@@ -1222,8 +1257,8 @@ class TrainingScene extends Phaser.Scene {
     this.superUnlocked = (this.registry.get('level') || 1) >= 10;
 
     // ── TOP BAR ──────────────────────────────────────
-    this.add.rectangle(0,0,W,58 + top,0x000000,.88).setScrollFactor(0).setDepth(90).setOrigin(0);
-    this.add.rectangle(0,57 + top,W,1.5,0x334466,.9).setScrollFactor(0).setDepth(90).setOrigin(0);
+    this.add.rectangle(0,0,W,80 + top,0x000000,.88).setScrollFactor(0).setDepth(90).setOrigin(0);
+    this.add.rectangle(0,79 + top,W,1.5,0x334466,.9).setScrollFactor(0).setDepth(90).setOrigin(0);
 
     // Back button — plain interactive rect with scrollFactor(0) so hit area
     // stays fixed to screen even when the arena camera scrolls
@@ -1254,6 +1289,16 @@ class TrainingScene extends Phaser.Scene {
 
     this.oilChip = addCurrencyChip(this, W - 88, 18 + top, 'oil', this.oils, 0x6688aa, 91);
     this.nutChip = addCurrencyChip(this, W - 88, 42 + top, 'nut', this.nuts, 0xccaa66, 91);
+
+    // ── LV UP button (manual) ────────────────────────
+    const lv0 = this.registry.get('level') || 1;
+    this.lvUpBg = this.add.rectangle(W/2, 68 + top, W - 4, 20, 0x002200, 0)
+      .setScrollFactor(0).setDepth(91).setStrokeStyle(1, 0x00aa44, 0).setInteractive();
+    this.lvUpTxt = this.add.text(W/2, 68 + top, '', {
+      fontSize:'10px', fontFamily:RW.FONT, color:'#00ff88', stroke:'#001100', strokeThickness:2
+    }).setOrigin(.5).setScrollFactor(0).setDepth(92);
+    this.lvUpBg.on('pointerup', () => this.doLevelUp());
+    this.updateLvUpBtn();
 
     // ── BOTTOM BAR ───────────────────────────────────
     this.add.rectangle(0, this.hudBottom, W, H - this.hudBottom, 0x000000,.78).setScrollFactor(0).setDepth(90).setOrigin(0);
@@ -1464,7 +1509,7 @@ class TrainingScene extends Phaser.Scene {
       this.nutChip.getData('setValue')(this.nuts);
       this.float(enemy.x,enemy.y-48,`+${r.oil} oils  +${r.nut} nuts`,isBig?'#ff8800':'#aaffaa',isBig?15:12);
       if(isBig){ this.cameras.main.shake(420,.016); this.cameras.main.flash(280,255,100,0); }
-      this.checkLevelUp(); enemy.destroy(); this.save(); this.checkAllClear();
+      enemy.destroy(); this.save(); this.updateLvUpBtn(); this.checkAllClear();
     }
   }
 
@@ -1520,17 +1565,35 @@ class TrainingScene extends Phaser.Scene {
     floatJuice(this, W-46, this.superBtnImg.y - 50, 'SUPER ONLINE!', '#00ccff', 16, true);
   }
 
-  checkLevelUp() {
-    const lv=this.registry.get('level')||1;
-    if(lv>=10||this.nuts<lv*15) return;
-    const newLv=lv+1;
-    this.registry.set('level',newLv);
+  updateLvUpBtn() {
+    const lv = this.registry.get('level') || 1;
+    const cost = lv * 15;
+    const canUp = lv < 10 && this.nuts >= cost;
+    if (canUp) {
+      this.lvUpBg.setFillStyle(0x003311, 0.92).setStrokeStyle(1, 0x00ff88, 0.85).setAlpha(1);
+      this.lvUpTxt.setText(`▲  LEVEL UP  ·  need ${cost} nuts  ·  tap here  ▲`).setAlpha(1);
+    } else if (lv >= 10) {
+      this.lvUpBg.setFillStyle(0x001122, 0.7).setStrokeStyle(1, 0x003355, 0.6).setAlpha(0.7);
+      this.lvUpTxt.setText('MAX LEVEL — SUPER ONLINE').setAlpha(0.6).setColor('#2266aa');
+    } else {
+      this.lvUpBg.setFillStyle(0, 0).setStrokeStyle(1, 0, 0).setAlpha(0);
+      this.lvUpTxt.setAlpha(0);
+    }
+  }
+
+  doLevelUp() {
+    const lv = this.registry.get('level') || 1;
+    if (lv >= 10 || this.nuts < lv * 15) return;
+    const newLv = lv + 1;
+    this.registry.set('level', newLv);
     this.lvTxt.setText(`LV${newLv}`);
-    this.pMaxHP=Math.round(this.pMaxHP*1.1); this.pHP=this.pMaxHP; this.refreshHP();
+    this.pMaxHP = Math.round(this.pMaxHP * 1.1); this.pHP = this.pMaxHP; this.refreshHP();
     floatJuice(this, W/2, H/2-60, `LEVEL UP! LV ${newLv}`, '#ffcc00', 28, true);
-    this.cameras.main.flash(500,255,200,0);
-    if(newLv>=10 && !this.superUnlocked) this.unlockSuperUI();
-    else if(newLv>=10) floatJuice(this, W/2, H/2-95, 'MAX LEVEL! SUPER CHARGED!', '#00ffff', 18, true);
+    this.cameras.main.flash(500, 255, 200, 0);
+    if (newLv >= 10 && !this.superUnlocked) this.unlockSuperUI();
+    else if (newLv >= 10) floatJuice(this, W/2, H/2-95, 'MAX LEVEL! SUPER ONLINE!', '#00ffff', 18, true);
+    this.save();
+    this.updateLvUpBtn();
   }
 
   checkAllClear() {
