@@ -24,6 +24,29 @@ const MECH_DATA = {
   mechy: { name:'MECHY', hp:4500, color:'#00ccff', superName:'Missile Barrage' },
 };
 
+// ── Persistent save / load via localStorage ───────────────────
+function saveProgress(reg) {
+  try {
+    localStorage.setItem('rw_save', JSON.stringify({
+      oils:          reg.get('oils')          || 0,
+      nuts:          reg.get('nuts')          || 0,
+      level:         reg.get('level')         || 1,
+      wave:          reg.get('wave')          || 1,
+      selectedRobot: reg.get('selectedRobot') || 'og',
+      storyDone:     !!reg.get('storyDone'),
+    }));
+  } catch(e) {}
+}
+function loadProgress(reg) {
+  try {
+    const d = JSON.parse(localStorage.getItem('rw_save') || 'null');
+    if (!d) return;
+    ['oils','nuts','level','wave','selectedRobot','storyDone'].forEach(k => {
+      if (d[k] !== undefined) reg.set(k, d[k]);
+    });
+  } catch(e) {}
+}
+
 // ═══════════════════════════════════════════════════════════════
 // BOOT  –  generates every texture, then routes to correct scene
 // ═══════════════════════════════════════════════════════════════
@@ -229,6 +252,8 @@ class BootScene extends Phaser.Scene {
     stamp('panelDim',W,H,g=>{ g.fillStyle(0x000000,.7); g.fillRect(0,0,W,H); });
 
     g.destroy();
+
+    loadProgress(this.registry);
 
     if (this.registry.get('storyDone')) {
       this.scene.start('Menu');
@@ -640,6 +665,7 @@ class IntroScene extends Phaser.Scene {
 
   finishIntro() {
     this.registry.set('storyDone',true);
+    saveProgress(this.registry);
     this.cameras.main.fade(600,0,0,0);
     this.time.delayedCall(600,()=>this.scene.start('Menu'));
   }
@@ -900,6 +926,9 @@ class TrainingScene extends Phaser.Scene {
   create() {
     this.oils=this.registry.get('oils')||0;
     this.nuts=this.registry.get('nuts')||0;
+    this.wave=this.registry.get('wave')||1;
+    this.earnedOils=0;
+    this.earnedNuts=0;
 
     const WW=832, WH=832;
     this.physics.world.setBounds(64,64,WW-128,WH-128);
@@ -948,11 +977,21 @@ class TrainingScene extends Phaser.Scene {
     this.eBullets=this.physics.add.group();
   }
 
-  // ── Enemies ──────────────────────────────────────────────────
+  // ── Enemies (scales with wave number) ────────────────────────
   spawnEnemies(WW,WH) {
     this.dummies=this.physics.add.group();
     this.shooters=this.physics.add.group();
     this.bigs=this.physics.add.group();
+
+    const w=this.wave;
+    const hpMult = 1 + (w-1) * 0.25;                              // +25% HP per wave
+    const normalCount  = Math.min(8  + (w-1) * 2,   20);
+    const shooterCount = Math.min(4  + Math.floor((w-1)*.8), 14);
+    const bigCount     = Math.min(1  + Math.floor((w-1)/4),  5);
+
+    // Scaled base rewards (stored for use in hitEnemy)
+    this.normalReward = { oil:Math.round(15*(1+(w-1)*.15)), nut:Math.round(15*(1+(w-1)*.15)) };
+    this.bigReward    = { oil:Math.round(25*(1+(w-1)*.2)),  nut:Math.round(25*(1+(w-1)*.2))  };
 
     const mk=(grp,key,x,y,hp)=>{
       const e=grp.create(x,y,key);
@@ -960,11 +999,23 @@ class TrainingScene extends Phaser.Scene {
       this.physics.add.collider(e,this.walls);
       return e;
     };
-    [[180,180],[650,180],[180,650],[650,650],[400,140],[140,400],[660,400],[400,660]]
-      .forEach(([x,y])=>mk(this.dummies,'dummy',x,y,100));
-    [[280,310],[520,310],[280,520],[520,520]]
-      .forEach(([x,y])=>mk(this.shooters,'shootDummy',x,y,150));
-    mk(this.bigs,'bigDummy',WW/2,180,500);
+
+    // Spread enemies across arena, avoiding center (player spawn)
+    const taken=[];
+    const spot=()=>{
+      for(let t=0;t<30;t++){
+        const x=110+Math.random()*(WW-220), y=110+Math.random()*(WH-220);
+        if(Math.hypot(x-WW/2,y-WH/2)<160) continue;
+        if(taken.some(([sx,sy])=>Math.hypot(x-sx,y-sy)<85)) continue;
+        taken.push([x,y]); return [x,y];
+      }
+      const x=110+Math.random()*(WW-220), y=110+Math.random()*(WH-220);
+      taken.push([x,y]); return [x,y];
+    };
+
+    for(let i=0;i<normalCount;  i++){ const [x,y]=spot(); mk(this.dummies, 'dummy',     x,y,Math.round(100*hpMult)); }
+    for(let i=0;i<shooterCount; i++){ const [x,y]=spot(); mk(this.shooters,'shootDummy',x,y,Math.round(150*hpMult)); }
+    for(let i=0;i<bigCount;     i++){ const [x,y]=spot(); mk(this.bigs,    'bigDummy',   x,y,Math.round(500*hpMult)); }
   }
 
   // ── HUD ──────────────────────────────────────────────────────
@@ -978,10 +1029,12 @@ class TrainingScene extends Phaser.Scene {
     this.add.text(28,28,'←',{fontSize:'16px',color:'#7744aa',fontFamily:'Arial Black'}).setOrigin(.5).setScrollFactor(0).setDepth(92);
     backBtn.on('pointerdown',()=>{ this.save(); this.cameras.main.fade(280,0,0,0); this.time.delayedCall(280,()=>this.scene.start('Menu')); });
 
-    // Level badge
+    // Level + Wave badges
     const lv=this.registry.get('level')||1;
-    this.add.rectangle(76,28,38,26,0x1a1400,.9).setScrollFactor(0).setDepth(91).setStrokeStyle(1,0x443300,.7);
-    this.lvTxt=this.add.text(76,28,`LV${lv}`,{fontSize:'12px',fontFamily:'Arial Black',color:'#ffcc44'}).setOrigin(.5).setScrollFactor(0).setDepth(92);
+    this.add.rectangle(68,20,46,18,0x1a1400,.9).setScrollFactor(0).setDepth(91).setStrokeStyle(1,0x443300,.7);
+    this.lvTxt=this.add.text(68,20,`LV${lv}`,{fontSize:'11px',fontFamily:'Arial Black',color:'#ffcc44'}).setOrigin(.5).setScrollFactor(0).setDepth(92);
+    this.add.rectangle(68,40,46,16,0x001433,.9).setScrollFactor(0).setDepth(91).setStrokeStyle(1,0x003366,.7);
+    this.add.text(68,40,`W${this.wave}`,{fontSize:'10px',fontFamily:'Arial Black',color:'#4488cc'}).setOrigin(.5).setScrollFactor(0).setDepth(92);
 
     // HP bar (center)
     this.add.image(W/2,30,'hpBg').setScrollFactor(0).setDepth(91);
@@ -1148,7 +1201,7 @@ class TrainingScene extends Phaser.Scene {
     });
   }
 
-  hitEnemy(bullet,enemy,oilR,nutR,isBig=false) {
+  hitEnemy(bullet,enemy,_o,_n,isBig=false) {
     const dmg=bullet.isSuperBullet?65:32;
     enemy.hp-=dmg;
     this.float(enemy.x,enemy.y-22,`-${dmg}`,isBig?'#ff8800':'#ffff44',isBig?18:14);
@@ -1156,9 +1209,11 @@ class TrainingScene extends Phaser.Scene {
     this.superCharge=Math.min(100,this.superCharge+(isBig?4:7)); this.refreshSuperBar();
     if(enemy.hp<=0){
       if(enemy.hpGfx) enemy.hpGfx.destroy();
-      this.oils+=oilR; this.nuts+=nutR;
+      const r=isBig?this.bigReward:this.normalReward;
+      this.oils+=r.oil; this.nuts+=r.nut;
+      this.earnedOils+=r.oil; this.earnedNuts+=r.nut;
       this.oilTxt.setText(`${this.oils}`); this.nutTxt.setText(`${this.nuts}`);
-      this.float(enemy.x,enemy.y-48,`+${oilR} oils  +${nutR} nuts`,isBig?'#ff8800':'#aaffaa',isBig?15:12);
+      this.float(enemy.x,enemy.y-48,`+${r.oil} oils  +${r.nut} nuts`,isBig?'#ff8800':'#aaffaa',isBig?15:12);
       if(isBig){ this.cameras.main.shake(420,.016); this.cameras.main.flash(280,255,100,0); }
       this.checkLevelUp(); enemy.destroy(); this.save(); this.checkAllClear();
     }
@@ -1221,9 +1276,75 @@ class TrainingScene extends Phaser.Scene {
 
   checkAllClear() {
     if(this.dummies.countActive()+this.shooters.countActive()+this.bigs.countActive()===0){
+      this.alive=false;
       this.float(this.player.x,this.player.y-80,'ALL CLEAR!','#00ff88',34);
-      this.time.delayedCall(2000,()=>{ this.save(); this.cameras.main.fade(350,0,0,0); this.time.delayedCall(350,()=>this.scene.start('Menu')); });
+      this.save();
+      this.time.delayedCall(1400,()=>this.showWaveComplete());
     }
+  }
+
+  showWaveComplete() {
+    const nextWave=this.wave+1;
+    const nextHpMult=1+(nextWave-1)*.25;
+    const nextNorm=Math.min(8+(nextWave-1)*2,20);
+    const nextShoot=Math.min(4+Math.floor((nextWave-1)*.8),14);
+    const nextBig=Math.min(1+Math.floor((nextWave-1)/4),5);
+
+    // Dim overlay
+    const dim=this.add.rectangle(0,0,W,H,0x000000,.78).setScrollFactor(0).setDepth(300).setOrigin(0);
+    // Panel
+    const panel=this.add.rectangle(W/2,H/2,W-32,300,0x06061c).setScrollFactor(0).setDepth(301).setStrokeStyle(2,0x00ff88,.9);
+
+    const sf0={scrollFactorX:0,scrollFactorY:0};
+
+    this.add.text(W/2,H/2-128,`WAVE ${this.wave} CLEAR!`,{
+      fontSize:'26px',fontFamily:'Arial Black',color:'#00ff88',stroke:'#002211',strokeThickness:5
+    }).setOrigin(.5).setScrollFactor(0).setDepth(302);
+
+    this.add.text(W/2,H/2-92,'Earned this wave:',{
+      fontSize:'11px',color:'#666688',fontFamily:'Arial'
+    }).setOrigin(.5).setScrollFactor(0).setDepth(302);
+
+    this.add.text(W/2,H/2-68,`+${this.earnedOils} oils   +${this.earnedNuts} nuts`,{
+      fontSize:'20px',fontFamily:'Arial Black',color:'#ffcc44'
+    }).setOrigin(.5).setScrollFactor(0).setDepth(302);
+
+    // Separator
+    this.add.rectangle(W/2,H/2-42,W-60,1,0x222244).setScrollFactor(0).setDepth(302);
+
+    this.add.text(W/2,H/2-28,`NEXT: WAVE ${nextWave}`,{
+      fontSize:'11px',fontFamily:'Arial Black',color:'#334466'
+    }).setOrigin(.5).setScrollFactor(0).setDepth(302);
+
+    this.add.text(W/2,H/2-10,
+      `${nextNorm} dummies · ${nextShoot} shooters · ${nextBig} boss${nextBig>1?'es':''}\n(+25% tougher than Wave ${this.wave})`,{
+      fontSize:'10px',color:'#2a3a4a',fontFamily:'Arial',align:'center'
+    }).setOrigin(.5,0).setScrollFactor(0).setDepth(302);
+
+    // NEXT WAVE button
+    const nextBtn=this.add.rectangle(W/2,H/2+72,210,48,0x003311).setScrollFactor(0).setDepth(302).setInteractive().setStrokeStyle(2,0x00cc44,.8);
+    this.add.text(W/2,H/2+72,`NEXT WAVE  →`,{
+      fontSize:'18px',fontFamily:'Arial Black',color:'#00ff88'
+    }).setOrigin(.5).setScrollFactor(0).setDepth(303);
+    nextBtn.on('pointerover',()=>nextBtn.setFillStyle(0x004d1a));
+    nextBtn.on('pointerout', ()=>nextBtn.setFillStyle(0x003311));
+    nextBtn.on('pointerdown',()=>{
+      this.registry.set('wave',nextWave);
+      this.save();
+      this.cameras.main.fade(280,0,0,0);
+      this.time.delayedCall(280,()=>this.scene.restart());
+    });
+
+    // Menu button
+    const menuBtn=this.add.rectangle(W/2,H/2+126,210,36,0x110022).setScrollFactor(0).setDepth(302).setInteractive().setStrokeStyle(1,0x441188,.7);
+    this.add.text(W/2,H/2+126,'← Back to Menu',{
+      fontSize:'14px',fontFamily:'Arial Black',color:'#7744aa'
+    }).setOrigin(.5).setScrollFactor(0).setDepth(303);
+    menuBtn.on('pointerdown',()=>{
+      this.save();
+      this.cameras.main.fade(280,0,0,0);
+      this.time.delayedCall(280,()=>this.scene.start('Menu'));
+    });
   }
 
   playerDied() {
@@ -1240,7 +1361,11 @@ class TrainingScene extends Phaser.Scene {
     this.tweens.add({targets:t,y:sy-54,alpha:0,duration:1300,ease:'Power2',onComplete:()=>t.destroy()});
   }
 
-  save() { this.registry.set('oils',this.oils); this.registry.set('nuts',this.nuts); }
+  save() {
+    this.registry.set('oils',this.oils);
+    this.registry.set('nuts',this.nuts);
+    saveProgress(this.registry);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
