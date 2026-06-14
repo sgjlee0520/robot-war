@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#030318">
+<title>Robot War</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html,body { width:100%; height:100%; background:#030318; overflow:hidden; touch-action:none; }
+canvas { display:block; margin:auto; }
+</style>
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+<script>
+const W = 360, H = 640;
+
+// ═══════════════════════════════════════════════════════════════
+// BOOT  –  generates every texture, then routes to correct scene
+// ═══════════════════════════════════════════════════════════════
+class BootScene extends Phaser.Scene {
+  constructor() { super('Boot'); }
+
+  create() {
+    const g = this.add.graphics();
+    const stamp = (key, w, h, fn) => { g.clear(); fn(g); g.generateTexture(key, w, h); };
+
+    // ── ROBY: boxy grid-face, cross laser-eye top-left, flat wing panels ──
+    stamp('roby', 46, 56, g => {
+      const hC=0x5577aa, pC=0x3a5580, bC=0x446699;
+      g.fillStyle(hC); g.fillRect(9,2,28,28);
+      g.lineStyle(2,pC,1);
+      g.strokeRect(9,2,28,28); g.strokeRect(9,2,14,14); g.strokeRect(23,2,14,14);
+      g.strokeRect(9,16,14,14); g.strokeRect(23,16,14,14);
+      g.fillStyle(0xff1133); g.fillRect(12,8,8,2); g.fillRect(15,5,2,8); // cross eye
+      g.fillStyle(0xffaa00); g.fillRect(25,5,5,5);
+      g.fillStyle(0xffdd88,.7); g.fillRect(26,6,3,3);
+      g.fillStyle(pC);
+      g.fillRect(11,18,10,2); g.fillRect(11,21,10,2); g.fillRect(11,24,10,2);
+      g.fillRect(25,18,10,2); g.fillRect(25,21,10,2);
+      g.fillStyle(bC); g.fillRect(14,30,18,14);
+      g.fillStyle(pC); g.fillRect(16,32,14,4);
+      g.fillStyle(0x334d77); g.fillRect(0,22,10,8); g.fillRect(36,22,10,8);
+      g.fillStyle(0x6688bb); g.fillRect(0,22,10,2); g.fillRect(36,22,10,2);
+      g.fillStyle(bC); g.fillRect(14,44,8,12); g.fillRect(24,44,8,12);
+      g.fillStyle(pC); g.fillRect(13,53,10,3); g.fillRect(23,53,10,3);
+    });
+
+    // ── MECHY: massive wide head, two huge angry eye-plates ──────────────
+    stamp('mechy', 54, 52, g => {
+      const hC=0x446688, eP=0x1a3344, eG=0x00ccff, bC=0x335577;
+      g.fillStyle(hC); g.fillRect(2,0,50,28);
+      g.lineStyle(2,0x223355,1); g.strokeRect(2,0,50,28);
+      g.fillStyle(0x1a2a3a); g.fillRect(2,0,50,7);
+      g.fillStyle(eP); g.fillRect(5,9,19,14);
+      g.fillStyle(eG); g.fillRect(6,10,17,12);
+      g.fillStyle(0x003344); g.fillRect(6,10,17,3); g.fillRect(6,17,17,2);
+      g.fillStyle(0x001122); g.fillTriangle(17,10,23,10,23,16);
+      g.fillStyle(eP); g.fillRect(30,9,19,14);
+      g.fillStyle(eG); g.fillRect(31,10,17,12);
+      g.fillStyle(0x003344); g.fillRect(31,10,17,3); g.fillRect(31,17,17,2);
+      g.fillStyle(0x001122); g.fillTriangle(31,10,37,10,31,16);
+      g.fillStyle(0x223344); g.fillRect(18,24,18,4);
+      g.fillStyle(bC); g.fillRect(12,28,30,16);
+      g.fillStyle(0x2a4455); g.fillRect(17,30,20,8);
+      g.fillStyle(bC); g.fillRect(14,44,11,8); g.fillRect(29,44,11,8);
+      g.fillStyle(0x223344); g.fillRect(13,50,13,2); g.fillRect(28,50,13,2);
+    });
+
+    // ── OG: angled head, broad torso w/ crystal slot, curved backpack ────
+    stamp('og', 58, 64, g => {
+      const aC=0x3a6a3a, bC=0x4a7a4a, pC=0x2d5c2d, hC=0x66aa66;
+      g.fillStyle(0x2a4a2a); g.fillEllipse(46,24,20,32);
+      g.fillStyle(0x224422); g.fillRect(44,14,8,28);
+      g.fillStyle(bC); g.fillRect(10,24,36,26);
+      g.lineStyle(1,pC,1); g.strokeRect(10,24,36,26);
+      g.fillStyle(pC); g.fillRect(12,26,14,12); g.fillRect(28,26,14,12);
+      g.fillStyle(hC,.4); g.fillRect(13,27,6,5); g.fillRect(29,27,6,5);
+      g.fillStyle(0xff69b4); g.fillRect(22,29,12,5);
+      g.fillStyle(0xffaadd,.6); g.fillRect(23,30,10,3);
+      g.fillStyle(aC); g.fillRect(0,22,12,14); g.fillRect(44,22,12,14);
+      g.fillStyle(hC); g.fillRect(0,22,12,3); g.fillRect(44,22,12,3);
+      g.fillStyle(aC); g.fillRect(2,36,9,14); g.fillRect(45,36,9,14);
+      g.fillStyle(pC); g.fillRect(1,48,11,8); g.fillRect(44,48,11,8);
+      g.fillStyle(bC); g.fillRect(18,4,22,20);
+      g.fillStyle(0x030318);
+      g.fillTriangle(18,4,26,4,18,10); g.fillTriangle(40,4,32,4,40,10);
+      g.fillStyle(0x00ff88); g.fillCircle(29,14,6);
+      g.fillStyle(0x003311); g.fillCircle(29,14,3);
+      g.fillStyle(0x00ff88,.4); g.fillCircle(27,12,2);
+      g.fillStyle(bC); g.fillRect(11,50,12,14); g.fillRect(33,50,12,14);
+      g.fillStyle(pC); g.fillRect(9,60,15,4); g.fillRect(32,60,15,4);
+    });
+
+    // ── DUMMIES ───────────────────────────────────────────────────────────
+    stamp('dummy',36,54,g=>{
+      g.fillStyle(0xcc8844); g.fillCircle(18,11,11);
+      g.fillRoundedRect(7,22,22,22,3);
+      g.fillRect(0,22,7,13); g.fillRect(29,22,7,13);
+      g.fillRect(7,43,9,11); g.fillRect(20,43,9,11);
+      g.fillStyle(0x000000); g.fillCircle(13,9,2); g.fillCircle(23,9,2);
+      g.fillRect(13,15,10,2);
+    });
+    stamp('shootDummy',44,54,g=>{
+      g.fillStyle(0x993322); g.fillCircle(18,11,11);
+      g.fillRoundedRect(7,22,22,22,3);
+      g.fillRect(0,22,7,13); g.fillRect(29,22,7,13);
+      g.fillRect(7,43,9,11); g.fillRect(20,43,9,11);
+      g.fillStyle(0xffff00); g.fillCircle(13,9,3); g.fillCircle(23,9,3);
+      g.fillStyle(0x000000); g.fillRect(13,15,10,3);
+      g.fillStyle(0x222222); g.fillRect(29,25,14,5);
+    });
+    stamp('bigDummy',70,90,g=>{
+      g.fillStyle(0xcc2222); g.fillCircle(35,18,18);
+      g.fillRoundedRect(10,34,50,40,5);
+      g.fillRect(0,34,10,28); g.fillRect(60,34,10,28);
+      g.fillRect(12,73,16,17); g.fillRect(42,73,16,17);
+      g.fillStyle(0x000000); g.fillCircle(26,15,5); g.fillCircle(44,15,5);
+      g.fillStyle(0xff8800); g.fillRect(24,24,22,4);
+    });
+
+    // ── PROJECTILES ───────────────────────────────────────────────────────
+    stamp('bullet',12,12,g=>{ g.fillStyle(0x00ff88); g.fillCircle(6,6,6); g.fillStyle(0xaaffcc,.6); g.fillCircle(4,4,3); });
+    stamp('sBullet',14,14,g=>{ g.fillStyle(0x00ccff); g.fillCircle(7,7,7); g.fillStyle(0xffffff,.5); g.fillCircle(5,5,3); });
+    stamp('eBullet',10,10,g=>{ g.fillStyle(0xff4400); g.fillCircle(5,5,5); });
+
+    // ── COLLECTIBLES ──────────────────────────────────────────────────────
+    stamp('crystal',28,32,g=>{
+      g.fillStyle(0xff69b4); g.fillTriangle(14,0,28,22,0,22);
+      g.fillStyle(0xff99cc); g.fillTriangle(14,4,23,20,5,20);
+      g.fillStyle(0xffffff,.7); g.fillTriangle(14,7,19,16,10,16);
+      g.fillStyle(0xff69b4); g.fillTriangle(14,22,28,32,0,32);
+    });
+    stamp('crystalBig',44,56,g=>{
+      g.fillStyle(0xff69b4,.18); g.fillCircle(22,32,24);
+      g.fillStyle(0xff69b4,.12); g.fillCircle(22,32,18);
+      g.fillStyle(0xff69b4); g.fillTriangle(22,2,40,32,4,32);
+      g.fillStyle(0xff99cc); g.fillTriangle(22,7,34,30,10,30);
+      g.fillStyle(0xffffff,.7); g.fillTriangle(22,12,28,26,16,26);
+      g.fillStyle(0xff4499); g.fillTriangle(22,32,40,32,22,54);
+      g.fillStyle(0xff69b4); g.fillTriangle(22,32,4,32,22,54);
+    });
+    stamp('oil',18,20,g=>{
+      g.fillStyle(0x111111); g.fillCircle(9,12,8); g.fillTriangle(9,0,16,12,2,12);
+      g.fillStyle(0x444444); g.fillCircle(6,10,3);
+    });
+    stamp('nut',18,18,g=>{
+      g.fillStyle(0xaaaaaa); g.fillRect(3,0,12,4); g.fillRect(0,4,18,10); g.fillRect(3,14,12,4);
+      g.fillStyle(0x666666); g.fillCircle(9,9,4);
+      g.fillStyle(0xdddddd); g.fillCircle(9,9,2);
+    });
+
+    // ── INTRO POV ─────────────────────────────────────────────────────────
+    stamp('parts',34,28,g=>{
+      g.fillStyle(0x4a6070);
+      g.fillRect(4,10,14,10); g.fillRect(20,14,8,6); g.fillRect(0,18,8,10);
+      g.fillStyle(0x384858); g.fillRect(10,0,14,12);
+      g.fillStyle(0x44aacc,.4); g.fillCircle(17,5,3);
+      g.fillStyle(0x2a3840); g.fillRect(2,26,30,2);
+    });
+    stamp('qmark',24,30,g=>{
+      g.fillStyle(0xffcc00); g.fillTriangle(12,0,24,26,0,26);
+      g.fillStyle(0x000000); g.fillRect(10,9,4,10); g.fillRect(10,21,4,4);
+    });
+
+    // ── ARENA TILES ───────────────────────────────────────────────────────
+    stamp('floor',64,64,g=>{
+      g.fillStyle(0x12122a); g.fillRect(0,0,64,64);
+      g.lineStyle(1,0x1e1e44,.8); g.strokeRect(0,0,64,64);
+      g.fillStyle(0x1a1a33,.5); g.fillRect(2,2,60,60);
+    });
+    stamp('wall',64,64,g=>{
+      g.fillStyle(0x1e0e3a); g.fillRect(0,0,64,64);
+      g.fillStyle(0x2e1e4a); g.fillRect(4,4,56,56);
+      g.lineStyle(2,0x4e2e7a,.6); g.strokeRect(6,6,52,52);
+    });
+    stamp('ruinFloor',64,64,g=>{
+      g.fillStyle(0x14101e); g.fillRect(0,0,64,64);
+      g.fillStyle(0x1e182a); g.fillRect(8,12,18,12); g.fillRect(40,30,14,10); g.fillRect(20,46,20,8);
+      g.lineStyle(1,0x1a1424,.5); g.strokeRect(0,0,64,64);
+    });
+    stamp('ruinWall',64,64,g=>{
+      g.fillStyle(0x0e0a16); g.fillRect(0,0,64,64);
+      g.fillStyle(0x18142a); g.fillRect(4,4,56,56);
+      g.fillStyle(0x221e30); g.fillRect(8,8,24,20);
+    });
+
+    // ── UI ELEMENTS ───────────────────────────────────────────────────────
+    stamp('hpBg',  210,18,g=>{ g.fillStyle(0x0e0e24); g.fillRoundedRect(0,0,210,18,5); g.lineStyle(1,0x2a2a55,1); g.strokeRoundedRect(0,0,210,18,5); });
+    stamp('hpFill',210,18,g=>{ g.fillStyle(0x00cc44); g.fillRoundedRect(0,0,210,18,5); g.fillStyle(0x00ff66,.35); g.fillRoundedRect(0,0,210,9,5); });
+    stamp('ammoOn', 36,15,g=>{ g.fillStyle(0x00ff88); g.fillRoundedRect(0,0,36,15,4); g.fillStyle(0x66ffbb,.4); g.fillRoundedRect(2,2,32,6,3); });
+    stamp('ammoOff',36,15,g=>{ g.fillStyle(0x0d1f14); g.fillRoundedRect(0,0,36,15,4); g.lineStyle(1,0x1a4428); g.strokeRoundedRect(0,0,36,15,4); });
+    stamp('sBg',  190,15,g=>{ g.fillStyle(0x001428); g.fillRoundedRect(0,0,190,15,4); g.lineStyle(1,0x002244); g.strokeRoundedRect(0,0,190,15,4); });
+    stamp('sFill',190,15,g=>{ g.fillStyle(0x0077ee); g.fillRoundedRect(0,0,190,15,4); g.fillStyle(0x44aaff,.4); g.fillRoundedRect(0,0,190,8,4); });
+    stamp('superBtn',64,64,g=>{
+      g.fillStyle(0x002244); g.fillCircle(32,32,32);
+      g.fillStyle(0x003d88); g.fillCircle(32,32,26);
+      g.fillStyle(0x0055bb); g.fillCircle(32,32,20);
+      g.fillStyle(0xffffff);
+      g.fillTriangle(36,14,22,32,30,32);
+      g.fillTriangle(26,32,34,32,20,50);
+    });
+    stamp('fireBtn',72,72,g=>{
+      g.fillStyle(0x550800); g.fillCircle(36,36,36);
+      g.fillStyle(0x991100); g.fillCircle(36,36,29);
+      g.fillStyle(0xdd3300); g.fillCircle(36,36,22);
+      g.fillStyle(0xff6633); g.fillCircle(36,36,13);
+      g.fillStyle(0xff9966); g.fillCircle(36,36,6);
+    });
+    stamp('jBase',100,100,g=>{
+      g.fillStyle(0xffffff,.09); g.fillCircle(50,50,50);
+      g.lineStyle(1.5,0xffffff,.18); g.strokeCircle(50,50,50);
+      g.lineStyle(1,0xffffff,.08); g.strokeCircle(50,50,28);
+    });
+    stamp('jThumb',56,56,g=>{
+      g.fillStyle(0xffffff,.38); g.fillCircle(28,28,28);
+      g.lineStyle(1.5,0xffffff,.55); g.strokeCircle(28,28,28);
+    });
+    stamp('star',3,3,g=>{ g.fillStyle(0xffffff); g.fillRect(0,0,3,3); });
+    stamp('panelDim',W,H,g=>{ g.fillStyle(0x000000,.7); g.fillRect(0,0,W,H); });
+
+    g.destroy();
+
+    if (this.registry.get('storyDone')) {
+      this.scene.start('Menu');
+    } else {
+      this.scene.start('Story');
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STORY  –  6 illustrated panels, tap to advance
+// ═══════════════════════════════════════════════════════════════
+class StoryScene extends Phaser.Scene {
+  constructor() { super('Story'); }
+
+  create() {
+    this.idx = -1;
+    this.busy = false;
+
+    this.bg = this.add.rectangle(0,0,W,H,0x000000).setOrigin(0).setDepth(0);
+    this.illGfx = this.add.graphics().setDepth(1);
+
+    // text box at bottom
+    this.add.rectangle(0,H*0.58,W,H*0.42,0x03030f,.97).setOrigin(0).setDepth(2);
+    this.add.rectangle(0,H*0.575,W,2,0x333366,.8).setOrigin(0).setDepth(2);
+
+    this.txt = this.add.text(W/2, H*0.66,'',{
+      fontSize:'16px', fontFamily:'Arial,sans-serif', color:'#e8e8ff',
+      align:'center', wordWrap:{width:W-48}, lineSpacing:7
+    }).setOrigin(0.5,0).setDepth(3);
+
+    this.counter = this.add.text(W/2,H-26,'',{
+      fontSize:'11px', color:'#444466', fontFamily:'Arial'
+    }).setOrigin(0.5).setDepth(3);
+
+    const tapHint = this.add.text(W/2,H-46,'tap to continue ▶',{
+      fontSize:'11px', color:'#2a2a55', fontFamily:'Arial'
+    }).setOrigin(0.5).setDepth(3);
+    this.tweens.add({targets:tapHint, alpha:.15, duration:900, yoyo:true, repeat:-1});
+
+    const skipBtn = this.add.text(W-14,14,'SKIP',{
+      fontSize:'12px', color:'#33335a', fontFamily:'Arial Black',
+      backgroundColor:'#00000088', padding:{x:8,y:4}
+    }).setOrigin(1,0).setDepth(3).setInteractive();
+    skipBtn.on('pointerdown',()=>this.finish());
+
+    this.input.on('pointerdown',(p)=>{
+      if(p.x>W-70 && p.y<60) return;
+      this.advance();
+    });
+
+    this.advance();
+  }
+
+  advance() {
+    if(this.busy) return;
+    this.idx++;
+    if(this.idx >= this.panels.length){ this.finish(); return; }
+    this.busy = true;
+    this.cameras.main.fade(120,0,0,0);
+    this.time.delayedCall(120,()=>{
+      const p = this.panels[this.idx];
+      this.bg.setFillStyle(p.bgCol);
+      this.illGfx.clear();
+      p.draw(this.illGfx);
+      this.txt.setText(p.text);
+      this.counter.setText(`${this.idx+1} / ${this.panels.length}`);
+      this.cameras.main.fadeIn(200);
+      this.time.delayedCall(260,()=>{ this.busy=false; });
+    });
+  }
+
+  finish() {
+    this.cameras.main.fade(400,0,0,0);
+    this.time.delayedCall(400,()=>this.scene.start('Intro'));
+  }
+
+  get panels() {
+    const H6=Math.round(H*0.58);
+    return [
+      // 1 — War declared
+      { bgCol:0x110005,
+        text:'In the year 2157...\nHumans declared WAR\non all robots.',
+        draw(g){
+          g.fillStyle(0x2a0808); g.fillRect(0,0,W,H6);
+          // smoke / dark sky
+          g.fillStyle(0x440808,.4); g.fillEllipse(80,60,140,80);
+          g.fillStyle(0x660000,.3); g.fillEllipse(260,40,160,100);
+          // city silhouettes
+          g.fillStyle(0x0a0404);
+          [[10,0.38,28,0.2],[50,0.3,20,0.28],[80,0.4,36,0.18],[130,0.34,18,0.24],
+           [200,0.36,32,0.22],[244,0.28,22,0.3],[280,0.38,40,0.2],[320,0.32,30,0.26]
+          ].forEach(([x,yf,w,hf])=>g.fillRect(x,H6*yf,w,H6*hf));
+          // explosions
+          [[78,0.28,20],[200,0.24,16],[290,0.22,14]].forEach(([x,yf,r])=>{
+            g.fillStyle(0xff4400,.75); g.fillCircle(x,H6*yf,r);
+            g.fillStyle(0xff8800,.55); g.fillCircle(x,H6*yf,r*.6);
+            g.fillStyle(0xffdd00,.9);  g.fillCircle(x,H6*yf,r*.25);
+          });
+          // human soldiers (left side)
+          g.fillStyle(0x443322);
+          [30,58,86,114].forEach(x=>{
+            g.fillRect(x-3,H6*.44,6,14); g.fillCircle(x,H6*.42,4);
+            g.fillRect(x-8,H6*.47,16,2);
+            g.fillStyle(0x555533); g.fillRect(x+5,H6*.45,12,3); g.fillStyle(0x443322);
+          });
+          // robots (right, some falling)
+          g.fillStyle(0x3a5566);
+          g.fillRect(238,H6*.35,14,18); g.fillRect(242,H6*.28,10,9);
+          g.fillStyle(0x2a4455);
+          g.fillRect(298,H6*.38,12,14); g.fillRect(302,H6*.32,8,7);
+        }
+      },
+      // 2 — Destruction
+      { bgCol:0x0a0003,
+        text:'One by one...\nevery robot was hunted\ndown and destroyed.',
+        draw(g){
+          g.fillStyle(0x180406); g.fillRect(0,0,W,H6);
+          // ground
+          g.fillStyle(0x100208); g.fillRect(0,H6*.48,W,H6*.52);
+          g.fillStyle(0x180610);
+          g.fillRect(0,H6*.3,W,H6*.2);
+          g.fillRect(10,H6*.2,28,H6*.1); g.fillRect(80,H6*.18,22,H6*.12);
+          g.fillRect(210,H6*.22,30,H6*.09); g.fillRect(290,H6*.26,24,H6*.07);
+          // heavy explosions
+          [[60,0.2,18],[170,0.15,22],[300,0.24,14],[130,0.3,10]].forEach(([x,yf,r])=>{
+            g.fillStyle(0xff2200,.8); g.fillCircle(x,H6*yf,r);
+            g.fillStyle(0xff6600,.6); g.fillCircle(x,H6*yf,r*.65);
+            g.fillStyle(0xffcc00,.9); g.fillCircle(x,H6*yf,r*.3);
+          });
+          // fallen robots with X eyes
+          [[44,0.3],[155,0.27],[248,0.32],[318,0.25]].forEach(([x,yf])=>{
+            g.fillStyle(0x4a6070);
+            g.fillRect(x-7,H6*yf,14,16); g.fillRect(x-5,H6*yf-7,10,8);
+            g.fillStyle(0xff3333);
+            g.fillRect(x-4,H6*yf-5,2,2); g.fillRect(x-2,H6*yf-3,2,2);
+            g.fillRect(x+1,H6*yf-5,2,2); g.fillRect(x+3,H6*yf-3,2,2);
+          });
+        }
+      },
+      // 3 — OG survives
+      { bgCol:0x020210,
+        text:'Only ONE survived...\n\nOG — the last robot.',
+        draw(g){
+          g.fillStyle(0x06060f); g.fillRect(0,0,W,H6);
+          // stars
+          [[40,30],[90,50],[150,20],[210,60],[280,35],[320,15],[60,80],[330,70],
+           [130,90],[240,25],[180,45],[30,65]].forEach(([x,y])=>{
+            g.fillStyle(0xffffff,.5); g.fillRect(x,y,2,2);
+          });
+          // rubble ground
+          g.fillStyle(0x100818); g.fillRect(0,H6*.46,W,H6*.54);
+          g.fillStyle(0x180e20);
+          g.fillRect(0,H6*.38,60,H6*.08); g.fillRect(70,H6*.42,40,H6*.04);
+          g.fillRect(170,H6*.36,55,H6*.1); g.fillRect(260,H6*.40,80,H6*.06);
+          // spotlight (lonely atmosphere)
+          g.fillStyle(0xffffff,.025);
+          g.fillTriangle(W/2,-10,W/2-55,H6,W/2+55,H6);
+          // OG hiding behind rubble
+          g.fillStyle(0x4a7a4a); g.fillRect(W/2-9,H6*.32,18,20);
+          g.fillRect(W/2-7,H6*.25,14,10);
+          g.fillStyle(0x00ff88); g.fillCircle(W/2,H6*.3,3);
+          g.fillStyle(0x003311); g.fillCircle(W/2,H6*.3,1.5);
+          // rubble hiding him
+          g.fillStyle(0x180e20); g.fillRect(W/2-18,H6*.46,36,8);
+          g.fillRect(W/2+10,H6*.4,12,6);
+        }
+      },
+      // 4 — Crystal found
+      { bgCol:0x030315,
+        text:'As OG wandered the ruins...\nsomething was glowing\nin the darkness.\n\nA PINK CRYSTAL.',
+        draw(g){
+          g.fillStyle(0x05051a); g.fillRect(0,0,W,H6);
+          g.fillStyle(0x100818); g.fillRect(0,H6*.46,W,H6*.54);
+          g.fillStyle(0x140a20); g.fillRect(30,H6*.38,55,H6*.08); g.fillRect(220,H6*.40,50,H6*.06);
+          // crystal glow layers
+          g.fillStyle(0xff69b4,.04); g.fillCircle(W/2,H6*.26,90);
+          g.fillStyle(0xff69b4,.07); g.fillCircle(W/2,H6*.26,60);
+          g.fillStyle(0xff69b4,.11); g.fillCircle(W/2,H6*.26,38);
+          g.fillStyle(0xff69b4,.18); g.fillCircle(W/2,H6*.26,22);
+          // glow rays
+          for(let a=0;a<360;a+=36){
+            const r=a*Math.PI/180, x2=W/2+Math.cos(r)*110, y2=H6*.26+Math.sin(r)*110;
+            g.lineStyle(1,0xff69b4,.12); g.lineBetween(W/2,H6*.26,x2,y2);
+          }
+          // crystal shape
+          g.fillStyle(0xff69b4); g.fillTriangle(W/2,H6*.1,W/2+22,H6*.28,W/2-22,H6*.28);
+          g.fillStyle(0xff99cc); g.fillTriangle(W/2,H6*.13,W/2+16,H6*.27,W/2-16,H6*.27);
+          g.fillStyle(0xffffff,.7); g.fillTriangle(W/2,H6*.17,W/2+8,H6*.24,W/2-4,H6*.24);
+          g.fillStyle(0xff4499); g.fillTriangle(W/2,H6*.28,W/2+22,H6*.28,W/2,H6*.38);
+          g.fillStyle(0xff69b4); g.fillTriangle(W/2,H6*.28,W/2-22,H6*.28,W/2,H6*.38);
+          // OG approaching (small, left)
+          g.fillStyle(0x4a7a4a); g.fillRect(55,H6*.38,14,16); g.fillRect(57,H6*.31,10,8);
+          g.fillStyle(0x00ff88); g.fillCircle(62,H6*.35,2.5);
+        }
+      },
+      // 5 — The mission
+      { bgCol:0x020216,
+        text:'The crystal pulsed with\na strange power.\n\n"I can revive them.\nI have to find them."',
+        draw(g){
+          g.fillStyle(0x04041c); g.fillRect(0,0,W,H6);
+          // ghost robot silhouettes in background
+          g.fillStyle(0x223344,.35);
+          g.fillRect(52,H6*.18,24,22); g.fillRect(48,H6*.2,6,14); g.fillRect(76,H6*.2,6,14);
+          g.fillRect(54,H6*.4,10,10); g.fillRect(66,H6*.4,10,10);
+          g.fillStyle(0x334455,.3);
+          g.fillRect(248,H6*.15,46,22); g.fillRect(260,H6*.36,22,14);
+          g.fillRect(262,H6*.48,9,8); g.fillRect(275,H6*.48,9,8);
+          // ground
+          g.fillStyle(0x0a0820); g.fillRect(0,H6*.5,W,H6*.5);
+          // OG center, holding crystal
+          g.fillStyle(0x5a8a5a); g.fillRect(W/2-17,H6*.24,34,26);
+          g.fillRect(W/2-13,H6*.15,26,12);
+          g.fillStyle(0x00ff88); g.fillCircle(W/2+1,H6*.21,6);
+          g.fillStyle(0x003311); g.fillCircle(W/2+1,H6*.21,2.5);
+          g.fillStyle(0x5a8a5a);
+          g.fillRect(W/2-24,H6*.25,7,18); g.fillRect(W/2+17,H6*.25,7,18);
+          g.fillRect(W/2-15,H6*.5,11,12); g.fillRect(W/2+4,H6*.5,11,12);
+          // crystal in hand (right arm)
+          g.fillStyle(0xff69b4,.3); g.fillCircle(W/2+20,H6*.35,10);
+          g.fillStyle(0xff69b4); g.fillTriangle(W/2+20,H6*.28,W/2+27,H6*.37,W/2+13,H6*.37);
+          g.fillStyle(0xff99cc); g.fillTriangle(W/2+20,H6*.3,W/2+24,H6*.36,W/2+16,H6*.36);
+        }
+      },
+      // 6 — Call to action
+      { bgCol:0x000010,
+        text:'FIND THEM.\nREVIVE THEM.\nFIGHT BACK.',
+        draw(g){
+          g.fillStyle(0x01011a); g.fillRect(0,0,W,H6);
+          // dense stars
+          [[20,15],[55,40],[100,12],[145,55],[190,30],[230,8],[275,44],[315,20],
+           [40,70],[120,85],[200,65],[300,80],[80,100],[240,95],[330,60],[160,110]].forEach(([x,y])=>{
+            g.fillStyle(0xffffff,.6); g.fillRect(x,y,2,2);
+          });
+          // OG — lit up, determined
+          g.fillStyle(0x00ff88,.05); g.fillCircle(W/2,H6*.3,80);
+          g.fillStyle(0x00ff88,.08); g.fillCircle(W/2,H6*.3,50);
+          g.fillStyle(0x5a8a5a); g.fillRect(W/2-18,H6*.2,36,28);
+          g.fillRect(W/2-14,H6*.11,28,12);
+          g.fillStyle(0x00ff88); g.fillCircle(W/2+2,H6*.17,7);
+          g.fillStyle(0x002211); g.fillCircle(W/2+2,H6*.17,3);
+          g.fillStyle(0x5a8a5a);
+          g.fillRect(W/2-26,H6*.22,8,18); g.fillRect(W/2+18,H6*.22,8,18);
+          g.fillRect(W/2-16,H6*.48,12,12); g.fillRect(W/2+4,H6*.48,12,12);
+          // crystal glow from chest
+          g.fillStyle(0xff69b4,.35); g.fillCircle(W/2,H6*.31,14);
+          g.fillStyle(0xff69b4); g.fillTriangle(W/2,H6*.23,W/2+8,H6*.32,W/2-8,H6*.32);
+        }
+      },
+    ];
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INTRO POV  –  play as OG: find the crystal, revive 2 robots
+// ═══════════════════════════════════════════════════════════════
+class IntroScene extends Phaser.Scene {
+  constructor() { super('Intro'); }
+
+  create() {
+    const WW=576, WH=576;
+    this.physics.world.setBounds(64,64,WW-128,WH-128);
+    this.cameras.main.setBounds(0,0,WW,WH);
+
+    // Ruins tilemap
+    for(let x=0;x<WW;x+=64) for(let y=0;y<WH;y+=64) this.add.image(x+32,y+32,'ruinFloor');
+    this.walls = this.physics.add.staticGroup();
+    for(let x=0;x<WW;x+=64){
+      this.walls.create(x+32,32,'ruinWall');
+      this.walls.create(x+32,WH-32,'ruinWall');
+    }
+    for(let y=64;y<WH-64;y+=64){
+      this.walls.create(32,y+32,'ruinWall');
+      this.walls.create(WW-32,y+32,'ruinWall');
+    }
+
+    // Player (OG)
+    this.player = this.physics.add.sprite(WW/2,WH-130,'og').setDepth(10).setCollideWorldBounds(true);
+    this.physics.add.collider(this.player,this.walls);
+
+    // Crystal in center
+    this.crystalObj = this.physics.add.staticSprite(WW/2,180,'crystalBig').setDepth(5);
+    this.tweens.add({targets:this.crystalObj, y:174, duration:1400, yoyo:true, repeat:-1, ease:'Sine.easeInOut'});
+    this.add.image(WW/2,180,'qmark').setDepth(6).setY(148);
+
+    // Crystal glow tween
+    const cGfx = this.add.graphics().setDepth(4);
+    this.tweens.add({
+      targets:{t:0}, t:1, duration:1200, yoyo:true, repeat:-1,
+      onUpdate:(tw,target)=>{
+        cGfx.clear();
+        const a=0.06+target.t*0.1;
+        cGfx.fillStyle(0xff69b4,a); cGfx.fillCircle(WW/2,180,34+target.t*8);
+      }
+    });
+
+    // Robot parts piles
+    this.robyParts  = this.physics.add.staticSprite(130,220,'parts').setDepth(5);
+    this.mechyParts = this.physics.add.staticSprite(446,220,'parts').setDepth(5);
+    this.robyMark   = this.add.image(130,196,'qmark').setDepth(6).setVisible(false);
+    this.mechyMark  = this.add.image(446,196,'qmark').setDepth(6).setVisible(false);
+
+    // State
+    this.hasCrystal = false;
+    this.revivedRoby  = false;
+    this.revivedMechy = false;
+
+    // HUD
+    this.buildHUD();
+    this.buildJoystick(WW);
+    this.keys = this.input.keyboard.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT');
+
+    this.cameras.main.startFollow(this.player,true,.12,.12);
+    this.cameras.main.fadeIn(500);
+  }
+
+  buildHUD() {
+    // Top quest bar
+    this.add.rectangle(0,0,W,52,0x000000,.82).setScrollFactor(0).setDepth(90).setOrigin(0);
+    this.add.rectangle(0,50,W,2,0x1a1a44,.9).setScrollFactor(0).setDepth(90).setOrigin(0);
+    this.questTitle = this.add.text(W/2,10,'OBJECTIVE',{
+      fontSize:'10px', fontFamily:'Arial Black', color:'#555577'
+    }).setOrigin(0.5,0).setScrollFactor(0).setDepth(91);
+    this.questTxt = this.add.text(W/2,24,'Find the PINK CRYSTAL',{
+      fontSize:'14px', fontFamily:'Arial Black', color:'#ff99cc'
+    }).setOrigin(0.5,0).setScrollFactor(0).setDepth(91);
+
+    // Skip button
+    const skip = this.add.text(W-12,H-22,'Skip intro ▶',{
+      fontSize:'12px', color:'#33335a', fontFamily:'Arial',
+      backgroundColor:'#00000088', padding:{x:8,y:4}
+    }).setOrigin(1,1).setScrollFactor(0).setDepth(92).setInteractive();
+    skip.on('pointerdown',()=>this.finishIntro());
+  }
+
+  buildJoystick(WW) {
+    this.jBase  = this.add.image(85,H-72,'jBase').setScrollFactor(0).setDepth(90).setAlpha(.75);
+    this.jThumb = this.add.image(85,H-72,'jThumb').setScrollFactor(0).setDepth(91).setAlpha(.9);
+    this.jActive=false; this.jDir={x:0,y:0}; this.jCenter={x:85,y:H-72};
+    const R=40;
+    this.input.on('pointerdown',p=>{
+      if(p.x<W*.55){ this.jActive=true; this.jCenter={x:p.x,y:p.y}; this.jBase.setPosition(p.x,p.y); this.jThumb.setPosition(p.x,p.y); }
+    });
+    this.input.on('pointermove',p=>{
+      if(!this.jActive||p.x>=W*.55) return;
+      const dx=p.x-this.jCenter.x, dy=p.y-this.jCenter.y, dist=Math.hypot(dx,dy)||.001;
+      const c=Math.min(dist,R), ang=Math.atan2(dy,dx);
+      this.jThumb.setPosition(this.jCenter.x+Math.cos(ang)*c, this.jCenter.y+Math.sin(ang)*c);
+      this.jDir.x=(dx/dist)*Math.min(1,dist/R); this.jDir.y=(dy/dist)*Math.min(1,dist/R);
+    });
+    this.input.on('pointerup',p=>{ if(p.x<W*.55){ this.jActive=false; this.jDir={x:0,y:0}; this.jThumb.setPosition(this.jCenter.x,this.jCenter.y); }});
+  }
+
+  update() {
+    const spd=150;
+    let vx=0,vy=0;
+    if(this.jActive){ vx=this.jDir.x*spd; vy=this.jDir.y*spd; }
+    if(this.keys.LEFT.isDown||this.keys.A.isDown) vx=-spd;
+    if(this.keys.RIGHT.isDown||this.keys.D.isDown) vx=spd;
+    if(this.keys.UP.isDown||this.keys.W.isDown) vy=-spd;
+    if(this.keys.DOWN.isDown||this.keys.S.isDown) vy=spd;
+    this.player.setVelocity(vx,vy);
+    if(vx!==0) this.player.setFlipX(vx<0);
+
+    if(!this.hasCrystal && this.crystalObj && this.crystalObj.active){
+      const d=Phaser.Math.Distance.Between(this.player.x,this.player.y,this.crystalObj.x,this.crystalObj.y);
+      if(d<40) this.pickupCrystal();
+    }
+    if(this.hasCrystal && !this.revivedRoby && this.robyParts && this.robyParts.active){
+      const d=Phaser.Math.Distance.Between(this.player.x,this.player.y,this.robyParts.x,this.robyParts.y);
+      if(d<44) this.revive('roby');
+    }
+    if(this.hasCrystal && !this.revivedMechy && this.mechyParts && this.mechyParts.active){
+      const d=Phaser.Math.Distance.Between(this.player.x,this.player.y,this.mechyParts.x,this.mechyParts.y);
+      if(d<44) this.revive('mechy');
+    }
+  }
+
+  pickupCrystal() {
+    this.hasCrystal=true;
+    this.crystalObj.destroy();
+    this.cameras.main.flash(300,255,100,180);
+    this.cameras.main.shake(200,.008);
+    this.float(this.player.x,this.player.y-50,'Crystal acquired!','#ff99cc',18);
+    this.questTxt.setText('Revive the fallen robots!').setColor('#00ff88');
+    this.robyMark.setVisible(true);
+    this.mechyMark.setVisible(true);
+    // pink glow on player
+    this.tweens.add({targets:this.player, tint:0xff99cc, duration:300, yoyo:true});
+  }
+
+  revive(who) {
+    if(who==='roby'){ this.revivedRoby=true; this.robyParts.destroy(); this.robyMark.destroy(); }
+    else            { this.revivedMechy=true; this.mechyParts.destroy(); this.mechyMark.destroy(); }
+    const name=who==='roby'?'ROBY':'MECHY';
+    this.cameras.main.flash(400,100,200,255);
+    this.float(this.player.x,this.player.y-60,`${name} REVIVED!`,'#00ccff',20);
+    // revived robot appears briefly
+    const rx=who==='roby'?130:446, ry=220;
+    const bot=this.add.image(rx,ry-20,who).setDepth(12).setAlpha(0).setScale(2.2);
+    this.tweens.add({targets:bot, alpha:1, y:ry-40, duration:600, hold:1200, ease:'Back.out',
+      onComplete:()=>{ this.tweens.add({targets:bot, alpha:0, duration:400, onComplete:()=>bot.destroy()}); }
+    });
+
+    if(this.revivedRoby && this.revivedMechy) {
+      this.time.delayedCall(2000,()=>this.finishIntro());
+    }
+  }
+
+  finishIntro() {
+    this.registry.set('storyDone',true);
+    this.cameras.main.fade(600,0,0,0);
+    this.time.delayedCall(600,()=>this.scene.start('Menu'));
+  }
+
+  float(x,y,msg,color,size=15) {
+    const sx=x-this.cameras.main.scrollX, sy=y-this.cameras.main.scrollY;
+    const t=this.add.text(sx,sy,msg,{fontSize:`${size}px`,color,fontFamily:'Arial Black',stroke:'#000000',strokeThickness:3})
+      .setScrollFactor(0).setDepth(200).setOrigin(.5);
+    this.tweens.add({targets:t, y:sy-54, alpha:0, duration:1400, ease:'Power2', onComplete:()=>t.destroy()});
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MENU  –  redesigned main hub
+// ═══════════════════════════════════════════════════════════════
+class MenuScene extends Phaser.Scene {
+  constructor() { super('Menu'); }
+
+  create() {
+    // ── Background
+    this.add.rectangle(0,0,W,H,0x030318).setOrigin(0);
+    // subtle gradient bands
+    this.add.rectangle(0,0,W,H*.5,0x050530,.35).setOrigin(0);
+    this.add.rectangle(0,H*.5,W,H*.5,0x030318,.6).setOrigin(0);
+
+    // Stars
+    [[32,28],[88,16],[144,52],[200,34],[256,18],[312,44],[48,100],[160,88],[270,72],
+     [80,140],[230,160],[310,130],[120,200],[290,188],[50,220],[340,60],[20,170]].forEach(([x,y])=>{
+      const s=this.add.image(x,y,'star').setAlpha(Phaser.Math.FloatBetween(.2,1));
+      this.tweens.add({targets:s,alpha:.05,duration:Phaser.Math.Between(800,2400),yoyo:true,repeat:-1,delay:Phaser.Math.Between(0,2000)});
+    });
+
+    // ── Top resource bar
+    this.add.rectangle(0,0,W,42,0x000000,.65).setOrigin(0);
+    this.add.rectangle(0,41,W,1,0x1a1a55,.9).setOrigin(0);
+    const oils=this.registry.get('oils')||0, nuts=this.registry.get('nuts')||0, lv=this.registry.get('level')||1;
+    this.add.image(20,21,'oil').setScale(1.1);
+    this.add.text(34,21,`${oils}`,{fontSize:'13px',color:'#bbbbbb',fontFamily:'Arial'}).setOrigin(0,.5);
+    this.add.image(82,21,'nut').setScale(1.1);
+    this.add.text(96,21,`${nuts}`,{fontSize:'13px',color:'#bbbbbb',fontFamily:'Arial'}).setOrigin(0,.5);
+    this.add.rectangle(W-60,21,68,26,0x1a1a00,.6).setStrokeStyle(1,0x443300,.8);
+    this.add.text(W-26,21,`LV  ${lv}`,{fontSize:'13px',fontFamily:'Arial Black',color:'#ffcc44'}).setOrigin(1,.5);
+
+    // ── Title
+    const titleY=108;
+    this.add.text(W/2,titleY,'ROBOT WAR',{
+      fontSize:'46px', fontFamily:'Arial Black,sans-serif',
+      color:'#00ff88', stroke:'#002211', strokeThickness:8
+    }).setOrigin(.5);
+    // glow layer
+    this.add.text(W/2,titleY,'ROBOT WAR',{
+      fontSize:'46px', fontFamily:'Arial Black,sans-serif',
+      color:'#00ff88', stroke:'#00ff88', strokeThickness:14, alpha:.18
+    }).setOrigin(.5);
+
+    this.add.text(W/2,150,'Rise of the Mechs',{
+      fontSize:'14px', fontFamily:'Arial,sans-serif', color:'#556688'
+    }).setOrigin(.5);
+
+    // ── Character showcase panel
+    this.add.rectangle(W/2,265,W-40,150,0x060620,.8).setStrokeStyle(1,0x1a1a44);
+    // OG floating
+    const ogImg=this.add.image(W/2-44,268,'og').setScale(2.8);
+    this.tweens.add({targets:ogImg,y:260,duration:1600,yoyo:true,repeat:-1,ease:'Sine.easeInOut'});
+    // Crystal orbiting
+    const cImg=this.add.image(W/2+60,258,'crystal').setScale(1.6);
+    this.tweens.add({targets:cImg,angle:20,duration:2200,yoyo:true,repeat:-1,ease:'Sine.easeInOut'});
+    // crystal glow
+    const cGfx=this.add.graphics().setAlpha(.5);
+    this.tweens.add({targets:{t:0},t:1,duration:1200,yoyo:true,repeat:-1,onUpdate:(tw,o)=>{
+      cGfx.clear(); cGfx.fillStyle(0xff69b4,.06+o.t*.08); cGfx.fillCircle(W/2+60,258,18+o.t*6);
+    }});
+    // eye glow on OG
+    const eyeGfx=this.add.graphics();
+    this.tweens.add({targets:{t:0},t:1,duration:1000,yoyo:true,repeat:-1,onUpdate:(tw,o)=>{
+      eyeGfx.clear(); eyeGfx.fillStyle(0x00ff88,.12+o.t*.2); eyeGfx.fillCircle(W/2-30,263,8+o.t*4);
+    }});
+    // small Roby + Mechy flanking, locked look
+    this.add.image(W/2-115,282,'roby').setScale(1.5).setTint(0x223344).setAlpha(.6);
+    this.add.image(W/2+108,282,'mechy').setScale(1.4).setTint(0x223344).setAlpha(.6);
+
+    // ── Buttons
+    const btnY1=388, btnY2=456;
+    this.mkBtn(W/2, btnY1, 'PLAY', 0x005522, 0x00cc55, 0x00ff77, ()=>{
+      this.cameras.main.fade(280,0,0,0);
+      this.time.delayedCall(280,()=>this.scene.start('Training'));
+    });
+    this.mkBtn(W/2, btnY2, 'ROBOT ROAD', 0x220055, 0x6600cc, 0x9933ff, ()=>{
+      this.cameras.main.fade(280,0,0,0);
+      this.time.delayedCall(280,()=>this.scene.start('RobotRoad'));
+    });
+
+    // Replay story button
+    const replayBtn=this.add.text(W/2,514,'▶ Watch story again',{
+      fontSize:'12px', color:'#333355', fontFamily:'Arial', backgroundColor:'#00000055', padding:{x:10,y:5}
+    }).setOrigin(.5).setInteractive();
+    replayBtn.on('pointerdown',()=>{
+      this.registry.set('storyDone',false);
+      this.cameras.main.fade(280,0,0,0);
+      this.time.delayedCall(280,()=>this.scene.start('Story'));
+    });
+
+    this.add.text(W/2,H-18,'Demo v0.1  ·  OG  ·  Roby  ·  Mechy',{
+      fontSize:'10px', color:'#22223a', fontFamily:'Arial'
+    }).setOrigin(.5);
+
+    this.cameras.main.fadeIn(350);
+  }
+
+  mkBtn(x,y,label,dark,mid,bright,cb) {
+    const btn=this.add.rectangle(x,y,200,48,dark).setInteractive().setStrokeStyle(1.5,mid,.7);
+    // inner highlight
+    this.add.rectangle(x,y-10,196,14,bright,.06);
+    const txt=this.add.text(x,y,label,{fontSize:'20px',fontFamily:'Arial Black',color:'#ffffff',stroke:'#00000055',strokeThickness:3}).setOrigin(.5);
+    btn.on('pointerover',()=>{ btn.setFillStyle(mid); btn.setStrokeStyle(2,bright,1); });
+    btn.on('pointerout', ()=>{ btn.setFillStyle(dark); btn.setStrokeStyle(1.5,mid,.7); });
+    btn.on('pointerdown',cb);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ROBOT ROAD  –  mech collection screen
+// ═══════════════════════════════════════════════════════════════
+class RobotRoadScene extends Phaser.Scene {
+  constructor() { super('RobotRoad'); }
+
+  create() {
+    this.add.rectangle(0,0,W,H,0x030318).setOrigin(0);
+    this.add.rectangle(0,0,W,H*.45,0x06062a,.5).setOrigin(0);
+
+    // Header
+    this.add.rectangle(0,0,W,56,0x000000,.75).setOrigin(0);
+    this.add.rectangle(0,55,W,1.5,0x2a2a66,.9).setOrigin(0);
+    this.add.text(W/2,14,'ROBOT ROAD',{fontSize:'28px',fontFamily:'Arial Black',color:'#aa88ff',stroke:'#110022',strokeThickness:5}).setOrigin(.5,0);
+    const nuts=this.registry.get('nuts')||0;
+    this.add.image(22,44,'nut').setScale(1.1);
+    this.add.text(36,44,`${nuts} nuts`,{fontSize:'12px',color:'#888899',fontFamily:'Arial'}).setOrigin(0,.5);
+
+    const mechs=[
+      {key:'og',   name:'OG',    sub:'The Last Survivor', hp:5200, maxLvHp:9100, super:'Omni-Wave Burst',   cost:0,  unlocked:true},
+      {key:'roby', name:'ROBY',  sub:'The Brawler',       hp:3900, maxLvHp:7200, super:'Laser Cross (left eye)', cost:15, unlocked:nuts>=15},
+      {key:'mechy',name:'MECHY', sub:'The Engineer',      hp:4500, maxLvHp:8200, super:'Missile Barrage',   cost:30, unlocked:nuts>=30},
+    ];
+
+    mechs.forEach((m,i)=>{
+      const cy=124+i*160;
+      const locked=!m.unlocked;
+      // card bg
+      this.add.rectangle(W/2,cy,W-24,140,locked?0x06060e:0x09091e).setStrokeStyle(1.5,locked?0x1a1a2e:0x3322aa,.9);
+      // left: robot portrait box
+      this.add.rectangle(62,cy,96,110,locked?0x04040c:0x0d0d28).setStrokeStyle(1,locked?0x111122:0x221166,.8);
+      const rob=this.add.image(62,cy+4,m.key).setScale(1.9);
+      if(locked) rob.setTint(0x1a1a33);
+      // right: info
+      this.add.text(122,cy-50,m.name,{fontSize:'20px',fontFamily:'Arial Black',color:locked?'#2a2a44':'#00ff88'});
+      this.add.text(122,cy-26,m.sub,{fontSize:'11px',color:locked?'#222233':'#6677aa',fontFamily:'Arial'});
+      if(!locked){
+        this.add.text(122,cy-8,`HP: ${m.hp}  →  ${m.maxLvHp} (LV10)`,{fontSize:'11px',color:'#446644',fontFamily:'Arial'});
+        this.add.text(122,cy+12,`SUPER: ${m.super}`,{fontSize:'10px',color:'#4466aa',fontFamily:'Arial',wordWrap:{width:210}});
+        // HP mini bar
+        this.add.rectangle(122,cy+46,208,7,0x0a1a0a).setOrigin(0,.5);
+        this.add.rectangle(122,cy+46,Math.round(208*(m.hp/m.maxLvHp)),7,0x00aa44).setOrigin(0,.5);
+        this.add.text(W-18,cy+46,'✓ UNLOCKED',{fontSize:'10px',fontFamily:'Arial Black',color:'#00cc44'}).setOrigin(1,.5);
+      } else {
+        this.add.image(122,cy+12,'nut').setScale(1.1);
+        this.add.text(138,cy+12,`${m.cost} nuts to unlock`,{fontSize:'12px',color:'#554433',fontFamily:'Arial'}).setOrigin(0,.5);
+        this.add.text(W-18,cy+46,'🔒 LOCKED',{fontSize:'10px',fontFamily:'Arial Black',color:'#332244'}).setOrigin(1,.5);
+      }
+    });
+
+    // Monthly release note
+    this.add.rectangle(W/2,H-60,W-24,40,0x08080c).setStrokeStyle(1,0x1a1a33);
+    this.add.text(W/2,H-60,'New mechs drop monthly — stay tuned!',{fontSize:'11px',color:'#333355',fontFamily:'Arial'}).setOrigin(.5);
+
+    // Back button
+    const back=this.add.rectangle(50,H-18,80,30,0x110033,.9).setInteractive().setStrokeStyle(1,0x441188,.8);
+    this.add.text(50,H-18,'← BACK',{fontSize:'12px',fontFamily:'Arial Black',color:'#9966cc'}).setOrigin(.5);
+    back.on('pointerdown',()=>{
+      this.cameras.main.fade(220,0,0,0);
+      this.time.delayedCall(220,()=>this.scene.start('Menu'));
+    });
+
+    this.cameras.main.fadeIn(300);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TRAINING  –  combat scene with improved HUD
+// ═══════════════════════════════════════════════════════════════
+class TrainingScene extends Phaser.Scene {
+  constructor() { super('Training'); }
+
+  create() {
+    this.oils=this.registry.get('oils')||0;
+    this.nuts=this.registry.get('nuts')||0;
+
+    const WW=832, WH=832;
+    this.physics.world.setBounds(64,64,WW-128,WH-128);
+    this.cameras.main.setBounds(0,0,WW,WH);
+
+    this.buildArena(WW,WH);
+    this.spawnPlayer(WW,WH);
+    this.spawnEnemies(WW,WH);
+    this.buildHUD();
+    this.buildJoystick();
+
+    this.cameras.main.startFollow(this.player,true,.1,.1);
+    this.cameras.main.fadeIn(350);
+
+    this.time.addEvent({delay:1900, callback:this.enemyShoot, callbackScope:this, loop:true});
+    this.time.addEvent({delay:1600, callback:this.rechargeAmmo, callbackScope:this, loop:true});
+    this.time.addEvent({delay:100,  callback:()=>{
+      if(this.superCharge<100){ this.superCharge=Math.min(100,this.superCharge+.22); this.refreshSuperBar(); }
+    }, loop:true});
+  }
+
+  // ── Arena ────────────────────────────────────────────────────
+  buildArena(WW,WH) {
+    for(let x=0;x<WW;x+=64) for(let y=0;y<WH;y+=64) this.add.image(x+32,y+32,'floor');
+    this.walls=this.physics.add.staticGroup();
+    for(let x=0;x<WW;x+=64){
+      this.walls.create(x+32,32,'wall');
+      this.walls.create(x+32,WH-32,'wall');
+    }
+    for(let y=64;y<WH-64;y+=64){
+      this.walls.create(32,y+32,'wall');
+      this.walls.create(WW-32,y+32,'wall');
+    }
+  }
+
+  // ── Player ───────────────────────────────────────────────────
+  spawnPlayer(WW,WH) {
+    this.player=this.physics.add.sprite(WW/2,WH/2,'og').setDepth(10).setCollideWorldBounds(true);
+    this.physics.add.collider(this.player,this.walls);
+    this.pHP=5200; this.pMaxHP=5200;
+    this.ammo=3; this.maxAmmo=3;
+    this.superCharge=0; this.alive=true;
+    this.bullets=this.physics.add.group();
+    this.eBullets=this.physics.add.group();
+  }
+
+  // ── Enemies ──────────────────────────────────────────────────
+  spawnEnemies(WW,WH) {
+    this.dummies=this.physics.add.group();
+    this.shooters=this.physics.add.group();
+    this.bigs=this.physics.add.group();
+
+    const mk=(grp,key,x,y,hp)=>{
+      const e=grp.create(x,y,key);
+      e.hp=hp; e.maxHp=hp; e.hpGfx=this.add.graphics().setDepth(5);
+      this.physics.add.collider(e,this.walls);
+      return e;
+    };
+    [[180,180],[650,180],[180,650],[650,650],[400,140],[140,400],[660,400],[400,660]]
+      .forEach(([x,y])=>mk(this.dummies,'dummy',x,y,100));
+    [[280,310],[520,310],[280,520],[520,520]]
+      .forEach(([x,y])=>mk(this.shooters,'shootDummy',x,y,150));
+    mk(this.bigs,'bigDummy',WW/2,180,500);
+  }
+
+  // ── HUD ──────────────────────────────────────────────────────
+  buildHUD() {
+    // ── TOP BAR ──────────────────────────────────────
+    this.add.rectangle(0,0,W,56,0x000000,.85).setScrollFactor(0).setDepth(90).setOrigin(0);
+    this.add.rectangle(0,55,W,1.5,0x1a1a44,.9).setScrollFactor(0).setDepth(90).setOrigin(0);
+
+    // Back / menu button
+    const backBtn=this.add.rectangle(28,28,46,32,0x110022,.9).setScrollFactor(0).setDepth(91).setInteractive().setStrokeStyle(1,0x331166,.8);
+    this.add.text(28,28,'←',{fontSize:'16px',color:'#7744aa',fontFamily:'Arial Black'}).setOrigin(.5).setScrollFactor(0).setDepth(92);
+    backBtn.on('pointerdown',()=>{ this.save(); this.cameras.main.fade(280,0,0,0); this.time.delayedCall(280,()=>this.scene.start('Menu')); });
+
+    // Level badge
+    const lv=this.registry.get('level')||1;
+    this.add.rectangle(76,28,38,26,0x1a1400,.9).setScrollFactor(0).setDepth(91).setStrokeStyle(1,0x443300,.7);
+    this.lvTxt=this.add.text(76,28,`LV${lv}`,{fontSize:'12px',fontFamily:'Arial Black',color:'#ffcc44'}).setOrigin(.5).setScrollFactor(0).setDepth(92);
+
+    // HP bar (center)
+    this.add.image(W/2,30,'hpBg').setScrollFactor(0).setDepth(91);
+    this.hpFillIm=this.add.image(W/2,30,'hpFill').setScrollFactor(0).setDepth(92).setOrigin(.5);
+    this.hpTxt=this.add.text(W/2,30,`${this.pHP}`,{fontSize:'10px',fontFamily:'Arial Black',color:'#ffffff',stroke:'#000000',strokeThickness:2}).setOrigin(.5).setScrollFactor(0).setDepth(93);
+    this.hpNameTxt=this.add.text(W/2-100,19,'OG',{fontSize:'9px',color:'#44aa66',fontFamily:'Arial Black'}).setScrollFactor(0).setDepth(93);
+
+    // Resources top-right
+    this.add.image(W-54,18,'oil').setScale(1).setScrollFactor(0).setDepth(91);
+    this.oilTxt=this.add.text(W-42,18,`${this.oils}`,{fontSize:'11px',color:'#bbbbbb',fontFamily:'Arial'}).setOrigin(0,.5).setScrollFactor(0).setDepth(91);
+    this.add.image(W-54,38,'nut').setScale(1).setScrollFactor(0).setDepth(91);
+    this.nutTxt=this.add.text(W-42,38,`${this.nuts}`,{fontSize:'11px',color:'#bbbbbb',fontFamily:'Arial'}).setOrigin(0,.5).setScrollFactor(0).setDepth(91);
+
+    // ── BOTTOM BAR ───────────────────────────────────
+    this.add.rectangle(0,H-118,W,118,0x000000,.82).setScrollFactor(0).setDepth(90).setOrigin(0);
+    this.add.rectangle(0,H-118,W,1.5,0x1a1a44,.9).setScrollFactor(0).setDepth(90).setOrigin(0);
+
+    // Ammo section (top-right of bottom bar)
+    this.add.text(W-16,H-112,'AMMO',{fontSize:'9px',color:'#334433',fontFamily:'Arial Black'}).setOrigin(1,0).setScrollFactor(0).setDepth(91);
+    this.ammoPips=[];
+    for(let i=0;i<3;i++){
+      const p=this.add.image(W-14-(2-i)*40,H-93,'ammoOn').setScrollFactor(0).setDepth(91).setOrigin(1,.5);
+      this.ammoPips.push(p);
+    }
+
+    // Fire button (right side)
+    const fireBtn=this.add.image(W-44,H-58,'fireBtn').setScrollFactor(0).setDepth(91).setInteractive().setScale(1.05);
+    fireBtn.on('pointerdown',()=>this.shoot());
+
+    // Super bar (above super button)
+    this.add.image(W/2-40,H-108,'sBg').setScrollFactor(0).setDepth(91).setScale(.85,1);
+    this.sFillIm=this.add.image(W/2-40,H-108,'sFill').setScrollFactor(0).setDepth(92).setScale(.0001,1).setOrigin(.5);
+    this.add.text(W/2-40,H-108,'SUPER',{fontSize:'8px',color:'#224466',fontFamily:'Arial Black'}).setOrigin(.5).setScrollFactor(0).setDepth(93);
+
+    // Super button
+    this.superBtnImg=this.add.image(W-44,H-20,'superBtn').setScrollFactor(0).setDepth(91).setScale(.52).setInteractive();
+    this.add.text(W-44,H-6,'SUPER',{fontSize:'8px',color:'#224488',fontFamily:'Arial Black'}).setOrigin(.5,1).setScrollFactor(0).setDepth(92);
+    this.superBtnImg.on('pointerdown',()=>this.activateSuper());
+  }
+
+  // ── Joystick ─────────────────────────────────────────────────
+  buildJoystick() {
+    this.jBase=this.add.image(78,H-64,'jBase').setScrollFactor(0).setDepth(90).setAlpha(.72);
+    this.jThumb=this.add.image(78,H-64,'jThumb').setScrollFactor(0).setDepth(91).setAlpha(.88);
+    this.jActive=false; this.jDir={x:0,y:0}; this.jCenter={x:78,y:H-64};
+    const R=38;
+    this.input.on('pointerdown',p=>{
+      if(p.x<W*.52){ this.jActive=true; this.jCenter={x:p.x,y:p.y}; this.jBase.setPosition(p.x,p.y); this.jThumb.setPosition(p.x,p.y); }
+    });
+    this.input.on('pointermove',p=>{
+      if(!this.jActive||p.x>=W*.52) return;
+      const dx=p.x-this.jCenter.x, dy=p.y-this.jCenter.y, dist=Math.hypot(dx,dy)||.001;
+      const c=Math.min(dist,R), ang=Math.atan2(dy,dx);
+      this.jThumb.setPosition(this.jCenter.x+Math.cos(ang)*c, this.jCenter.y+Math.sin(ang)*c);
+      this.jDir.x=(dx/dist)*Math.min(1,dist/R); this.jDir.y=(dy/dist)*Math.min(1,dist/R);
+    });
+    this.input.on('pointerup',p=>{ if(p.x<W*.52){ this.jActive=false; this.jDir={x:0,y:0}; this.jThumb.setPosition(this.jCenter.x,this.jCenter.y); }});
+    this.keys=this.input.keyboard.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,SPACE');
+  }
+
+  // ── Main update ──────────────────────────────────────────────
+  update() {
+    if(!this.alive) return;
+    const spd=165;
+    let vx=0,vy=0;
+    if(this.jActive){ vx=this.jDir.x*spd; vy=this.jDir.y*spd; }
+    if(this.keys.LEFT.isDown||this.keys.A.isDown)   vx=-spd;
+    if(this.keys.RIGHT.isDown||this.keys.D.isDown)  vx= spd;
+    if(this.keys.UP.isDown||this.keys.W.isDown)     vy=-spd;
+    if(this.keys.DOWN.isDown||this.keys.S.isDown)   vy= spd;
+    if(Phaser.Input.Keyboard.JustDown(this.keys.SPACE)) this.shoot();
+    this.player.setVelocity(vx,vy);
+    if(vx!==0) this.player.setFlipX(vx<0);
+
+    [this.dummies,this.shooters,this.bigs].forEach(grp=>grp.getChildren().forEach(e=>{ if(e.active) this.drawEHP(e); }));
+
+    this.physics.overlap(this.bullets,this.dummies,  (b,e)=>this.hitEnemy(b,e,15,15));
+    this.physics.overlap(this.bullets,this.shooters, (b,e)=>this.hitEnemy(b,e,15,15));
+    this.physics.overlap(this.bullets,this.bigs,     (b,e)=>this.hitEnemy(b,e,25,25,true));
+    this.physics.overlap(this.eBullets,this.player,  (p,b)=>this.playerHit(b));
+
+    [...this.bullets.getChildren(),...this.eBullets.getChildren()].forEach(b=>{
+      if(b.x<0||b.x>900||b.y<0||b.y>900) b.destroy();
+    });
+
+    this.superBtnImg.setTint(this.superCharge>=100?0x00ddff:0xffffff);
+    // pulse super button when ready
+    if(this.superCharge>=100 && !this._superPulsing){
+      this._superPulsing=true;
+      this.tweens.add({targets:this.superBtnImg,scaleX:.58,scaleY:.58,duration:400,yoyo:true,repeat:-1,ease:'Sine.easeInOut'});
+    } else if(this.superCharge<100 && this._superPulsing){
+      this._superPulsing=false;
+      this.tweens.killTweensOf(this.superBtnImg);
+      this.superBtnImg.setScale(.52);
+    }
+  }
+
+  // ── Combat ───────────────────────────────────────────────────
+  shoot() {
+    if(this.ammo<=0||!this.alive) return;
+    this.ammo--; this.refreshAmmo();
+    const tgt=this.nearestEnemy();
+    const ang=tgt ? Phaser.Math.Angle.Between(this.player.x,this.player.y,tgt.x,tgt.y) : (this.player.flipX?Math.PI:0);
+    const b=this.bullets.create(this.player.x,this.player.y,'bullet').setDepth(9);
+    b.setVelocity(Math.cos(ang)*320,Math.sin(ang)*320);
+    this.superCharge=Math.min(100,this.superCharge+6); this.refreshSuperBar();
+  }
+
+  activateSuper() {
+    if(this.superCharge<100||!this.alive) return;
+    this.superCharge=0; this.refreshSuperBar(); this._superPulsing=false;
+    this.cameras.main.flash(220,0,160,80);
+    this.cameras.main.shake(320,.012);
+    for(let d=0;d<360;d+=45){
+      const r=Phaser.Math.DegToRad(d);
+      const b=this.bullets.create(this.player.x,this.player.y,'sBullet').setDepth(9).setScale(1.4);
+      b.setVelocity(Math.cos(r)*360,Math.sin(r)*360);
+      b.isSuperBullet=true;
+    }
+    this.float(this.player.x,this.player.y-60,'SUPER WAVE!','#00ffff',28);
+  }
+
+  enemyShoot() {
+    if(!this.alive) return;
+    this.shooters.getChildren().forEach(e=>{
+      if(!e.active) return;
+      if(Phaser.Math.Distance.Between(e.x,e.y,this.player.x,this.player.y)>380) return;
+      const ang=Phaser.Math.Angle.Between(e.x,e.y,this.player.x,this.player.y);
+      const b=this.eBullets.create(e.x,e.y,'eBullet').setDepth(8);
+      b.setVelocity(Math.cos(ang)*195,Math.sin(ang)*195);
+    });
+  }
+
+  hitEnemy(bullet,enemy,oilR,nutR,isBig=false) {
+    const dmg=bullet.isSuperBullet?65:32;
+    enemy.hp-=dmg;
+    this.float(enemy.x,enemy.y-22,`-${dmg}`,isBig?'#ff8800':'#ffff44',isBig?18:14);
+    bullet.destroy();
+    this.superCharge=Math.min(100,this.superCharge+(isBig?4:7)); this.refreshSuperBar();
+    if(enemy.hp<=0){
+      if(enemy.hpGfx) enemy.hpGfx.destroy();
+      this.oils+=oilR; this.nuts+=nutR;
+      this.oilTxt.setText(`${this.oils}`); this.nutTxt.setText(`${this.nuts}`);
+      this.float(enemy.x,enemy.y-48,`+${oilR} oils  +${nutR} nuts`,isBig?'#ff8800':'#aaffaa',isBig?15:12);
+      if(isBig){ this.cameras.main.shake(420,.016); this.cameras.main.flash(280,255,100,0); }
+      this.checkLevelUp(); enemy.destroy(); this.save(); this.checkAllClear();
+    }
+  }
+
+  playerHit(bullet) {
+    bullet.destroy();
+    this.pHP=Math.max(0,this.pHP-115); this.refreshHP();
+    this.cameras.main.shake(130,.008);
+    this.player.setTint(0xff3333);
+    this.time.delayedCall(180,()=>this.player.clearTint());
+    if(this.pHP<=0) this.playerDied();
+  }
+
+  // ── Utils ────────────────────────────────────────────────────
+  nearestEnemy() {
+    const all=[...this.dummies.getChildren(),...this.shooters.getChildren(),...this.bigs.getChildren()].filter(e=>e.active);
+    let nearest=null,best=1e9;
+    all.forEach(e=>{ const d=Phaser.Math.Distance.Between(this.player.x,this.player.y,e.x,e.y); if(d<best){best=d;nearest=e;} });
+    return nearest;
+  }
+
+  drawEHP(e) {
+    const g=e.hpGfx; g.clear();
+    const w=e.width*.9, h=5, x=e.x-w/2, y=e.y-e.height/2-9, pct=e.hp/e.maxHp;
+    g.fillStyle(0x111122); g.fillRect(x,y,w,h);
+    g.fillStyle(pct>.5?0x00cc44:pct>.25?0xffaa00:0xff2222); g.fillRect(x,y,w*pct,h);
+  }
+
+  rechargeAmmo() { if(this.ammo<this.maxAmmo){ this.ammo++; this.refreshAmmo(); } }
+
+  refreshAmmo() {
+    this.ammoPips.forEach((p,i)=>p.setTexture(i<this.ammo?'ammoOn':'ammoOff'));
+  }
+
+  refreshHP() {
+    const pct=Math.max(0,this.pHP/this.pMaxHP);
+    this.hpFillIm.setScale(pct,1); this.hpFillIm.setX(W/2-(1-pct)*105);
+    this.hpTxt.setText(`${this.pHP}`);
+    this.hpFillIm.setTint(pct>.5?0x00cc44:pct>.25?0xffaa00:0xff2222);
+  }
+
+  refreshSuperBar() {
+    const pct=Math.max(.0001,this.superCharge/100);
+    this.sFillIm.setScale(.85*pct,1);
+    this.sFillIm.setX(W/2-40-80*.85*(1-pct));
+  }
+
+  checkLevelUp() {
+    const lv=this.registry.get('level')||1;
+    if(lv>=10||this.nuts<lv*15) return;
+    const newLv=lv+1;
+    this.registry.set('level',newLv);
+    this.lvTxt.setText(`LV${newLv}`);
+    this.pMaxHP=Math.round(this.pMaxHP*1.1); this.pHP=this.pMaxHP; this.refreshHP();
+    this.float(W/2,H/2-60,`LEVEL UP!  LV ${newLv}`,'#ffcc00',30);
+    this.cameras.main.flash(500,255,200,0);
+    if(newLv>=10) this.float(W/2,H/2-95,'MAX LEVEL! SUPER CHARGED!','#00ffff',20);
+  }
+
+  checkAllClear() {
+    if(this.dummies.countActive()+this.shooters.countActive()+this.bigs.countActive()===0){
+      this.float(this.player.x,this.player.y-80,'ALL CLEAR!','#00ff88',34);
+      this.time.delayedCall(2000,()=>{ this.save(); this.cameras.main.fade(350,0,0,0); this.time.delayedCall(350,()=>this.scene.start('Menu')); });
+    }
+  }
+
+  playerDied() {
+    this.alive=false; this.player.setTint(0xff0000);
+    this.float(W/2,H/2-70,'DEFEATED!','#ff2222',38);
+    this.save();
+    this.time.delayedCall(2400,()=>{ this.cameras.main.fade(350,0,0,0); this.time.delayedCall(350,()=>this.scene.start('Menu')); });
+  }
+
+  float(x,y,msg,color,size=14) {
+    const sx=x-this.cameras.main.scrollX, sy=y-this.cameras.main.scrollY;
+    const t=this.add.text(sx,sy,msg,{fontSize:`${size}px`,color,fontFamily:'Arial Black',stroke:'#000000',strokeThickness:3})
+      .setScrollFactor(0).setDepth(200).setOrigin(.5);
+    this.tweens.add({targets:t,y:sy-54,alpha:0,duration:1300,ease:'Power2',onComplete:()=>t.destroy()});
+  }
+
+  save() { this.registry.set('oils',this.oils); this.registry.set('nuts',this.nuts); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LAUNCH
+// ═══════════════════════════════════════════════════════════════
+new Phaser.Game({
+  type: Phaser.AUTO,
+  width: W, height: H,
+  backgroundColor: '#030318',
+  physics: { default:'arcade', arcade:{ gravity:{y:0}, debug:false } },
+  scene: [BootScene, StoryScene, IntroScene, MenuScene, RobotRoadScene, TrainingScene],
+  scale: { mode:Phaser.Scale.FIT, autoCenter:Phaser.Scale.CENTER_BOTH }
+});
+</script>
+</body>
+</html>
