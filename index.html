@@ -6,6 +6,9 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#030318">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
 <title>Robot War</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -1060,9 +1063,17 @@ class TrainingScene extends Phaser.Scene {
       this.ammoPips.push(p);
     }
 
-    // Fire button (right side)
+    // Fire button (right side) — auto-fires while held so player can shoot while moving
     const fireBtn=this.add.image(W-44,H-58,'fireBtn').setScrollFactor(0).setDepth(91).setInteractive().setScale(1.05);
-    fireBtn.on('pointerdown',()=>this.shoot());
+    this._fireHeld=false;
+    this._fireTimer=null;
+    fireBtn.on('pointerdown',()=>{
+      this._fireHeld=true;
+      this.shoot();
+      this._fireTimer=this.time.addEvent({delay:280,callback:()=>{ if(this._fireHeld) this.shoot(); },loop:true});
+    });
+    fireBtn.on('pointerup',  ()=>{ this._fireHeld=false; if(this._fireTimer){this._fireTimer.remove();this._fireTimer=null;} });
+    fireBtn.on('pointerout', ()=>{ this._fireHeld=false; if(this._fireTimer){this._fireTimer.remove();this._fireTimer=null;} });
 
     // Super bar (above super button)
     this.add.image(W/2-40,H-108,'sBg').setScrollFactor(0).setDepth(91).setScale(.85,1);
@@ -1375,6 +1386,7 @@ new Phaser.Game({
   type: Phaser.AUTO,
   width: W, height: H,
   backgroundColor: '#030318',
+  input: { activePointers: 3 },
   physics: { default:'arcade', arcade:{ gravity:{y:0}, debug:false } },
   scene: [BootScene, StoryScene, IntroScene, MenuScene, RobotRoadScene, TrainingScene],
   scale: { mode:Phaser.Scale.FIT, autoCenter:Phaser.Scale.CENTER_BOTH }

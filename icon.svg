@@ -1,0 +1,149 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+
+  <!-- ── BACKGROUND ── -->
+  <rect width="512" height="512" fill="#030318"/>
+  <rect width="512" height="220" fill="#06062a" opacity="0.8"/>
+
+  <!-- Stars -->
+  <circle cx="38"  cy="28"  r="2" fill="#ffffff" opacity="0.45"/>
+  <circle cx="88"  cy="65"  r="2" fill="#ffffff" opacity="0.3"/>
+  <circle cx="155" cy="18"  r="2" fill="#ffffff" opacity="0.5"/>
+  <circle cx="360" cy="42"  r="2" fill="#ffffff" opacity="0.35"/>
+  <circle cx="455" cy="20"  r="2" fill="#ffffff" opacity="0.4"/>
+  <circle cx="480" cy="75"  r="2" fill="#ffffff" opacity="0.25"/>
+  <circle cx="22"  cy="100" r="2" fill="#ffffff" opacity="0.3"/>
+  <circle cx="490" cy="110" r="2" fill="#ffffff" opacity="0.3"/>
+
+  <!-- ── TITLE: ROBOT WAR ── -->
+  <!-- Glow layer -->
+  <text x="256" y="108" text-anchor="middle"
+        font-family="Arial Black, Impact, sans-serif"
+        font-size="96" font-weight="900"
+        fill="#00ff88" opacity="0.18"
+        stroke="#00ff88" stroke-width="18">ROBOT</text>
+  <!-- Main text -->
+  <text x="256" y="108" text-anchor="middle"
+        font-family="Arial Black, Impact, sans-serif"
+        font-size="96" font-weight="900"
+        fill="#00ff88" stroke="#002211" stroke-width="5">ROBOT</text>
+
+  <!-- Glow layer WAR -->
+  <text x="256" y="196" text-anchor="middle"
+        font-family="Arial Black, Impact, sans-serif"
+        font-size="100" font-weight="900"
+        fill="#ff2244" opacity="0.2"
+        stroke="#ff2244" stroke-width="18">WAR</text>
+  <!-- Main text WAR -->
+  <text x="256" y="196" text-anchor="middle"
+        font-family="Arial Black, Impact, sans-serif"
+        font-size="100" font-weight="900"
+        fill="#ff2244" stroke="#330011" stroke-width="5">WAR</text>
+
+  <!-- Divider -->
+  <rect x="30" y="212" width="452" height="2" fill="#1a1a44" rx="1"/>
+
+  <!-- ── HUMAN (left) ── -->
+  <!-- Head -->
+  <circle cx="118" cy="274" r="38" fill="#cc8855"/>
+  <!-- Hair -->
+  <ellipse cx="118" cy="248" rx="38" ry="20" fill="#332211"/>
+  <!-- Eyes -->
+  <circle cx="105" cy="277" r="5" fill="#221100"/>
+  <circle cx="131" cy="277" r="5" fill="#221100"/>
+  <!-- Mouth (grim/determined) -->
+  <rect x="106" y="290" width="24" height="4" rx="2" fill="#aa6633"/>
+  <!-- Body / jacket -->
+  <rect x="82" y="312" width="72" height="88" rx="7" fill="#1a44aa"/>
+  <!-- Jacket lapels -->
+  <polygon points="118,312 100,340 118,345" fill="#0d2d77"/>
+  <polygon points="118,312 136,340 118,345" fill="#0d2d77"/>
+  <!-- Belt -->
+  <rect x="82" y="393" width="72" height="9" fill="#111100"/>
+  <rect x="108" y="394" width="18" height="7" rx="2" fill="#886600"/>
+  <!-- Left arm (raised/fighting) -->
+  <rect x="46" y="310" width="38" height="22" rx="10" fill="#cc8855"/>
+  <rect x="20" y="298" width="28" height="38" rx="10" fill="#cc8855"/>
+  <!-- Fist -->
+  <rect x="16" y="295" width="30" height="26" rx="6" fill="#bb7744"/>
+  <!-- Right arm (holding gun, pointing inward) -->
+  <rect x="152" y="316" width="60" height="22" rx="8" fill="#cc8855"/>
+  <!-- Gun -->
+  <rect x="204" y="306" width="62" height="20" rx="4" fill="#1a1a2a"/>
+  <rect x="248" y="304" width="18" height="36" rx="3" fill="#222233"/>
+  <rect x="260" y="302" width="40" height="10" rx="2" fill="#2a2a3a"/>
+  <!-- Muzzle flash -->
+  <circle cx="302" cy="311" r="11" fill="#ffcc00" opacity="0.95"/>
+  <circle cx="302" cy="311" r="6"  fill="#ffffff"  opacity="0.9"/>
+  <!-- Legs -->
+  <rect x="84"  y="400" width="29" height="72" rx="8" fill="#0d2d88"/>
+  <rect x="121" y="400" width="29" height="72" rx="8" fill="#0d2d88"/>
+  <!-- Boots -->
+  <rect x="78"  y="462" width="40" height="16" rx="5" fill="#111122"/>
+  <rect x="116" y="462" width="40" height="16" rx="5" fill="#111122"/>
+  <!-- Label -->
+  <text x="118" y="500" text-anchor="middle"
+        font-family="Arial Black, sans-serif" font-size="22"
+        fill="#3355bb" font-weight="900">HUMAN</text>
+
+  <!-- ── VS EXPLOSION (centre) ── -->
+  <!-- Outer glow rings -->
+  <circle cx="256" cy="365" r="66" fill="#ff5500" opacity="0.1"/>
+  <circle cx="256" cy="365" r="48" fill="#ff7700" opacity="0.14"/>
+  <!-- Burst spikes -->
+  <polygon points="256,296 263,340 286,310 268,350 308,343 278,364 312,382 272,377 278,416 256,396 234,416 240,377 200,382 234,364 204,343 244,350 226,310 249,340"
+           fill="#ff6600" opacity="0.75"/>
+  <!-- VS -->
+  <text x="256" y="383" text-anchor="middle"
+        font-family="Arial Black, sans-serif" font-size="52" font-weight="900"
+        fill="#ffffff" stroke="#cc3300" stroke-width="4">VS</text>
+
+  <!-- ── ROBOT / OG (right) ── -->
+  <!-- Backpack -->
+  <ellipse cx="420" cy="318" rx="18" ry="32" fill="#1e3d1e"/>
+  <rect x="412" y="290" width="12" height="56" fill="#1e3d1e"/>
+  <!-- Body -->
+  <rect x="336" y="295" width="76" height="84" rx="6" fill="#3a6a3a"/>
+  <!-- Chest plates -->
+  <rect x="340" y="300" width="30" height="26" rx="4" fill="#2d5c2d"/>
+  <rect x="374" y="300" width="30" height="26" rx="4" fill="#2d5c2d"/>
+  <!-- Chest crystal slot (pink) -->
+  <rect x="353" y="306" width="26" height="12" rx="3" fill="#ff69b4"/>
+  <rect x="355" y="308" width="22" height="8"  rx="2" fill="#ffaadd" opacity="0.6"/>
+  <!-- Shoulder pads -->
+  <rect x="314" y="292" width="24" height="30" rx="5" fill="#3a6a3a"/>
+  <rect x="412" y="292" width="24" height="30" rx="5" fill="#3a6a3a"/>
+  <!-- Shoulder highlights -->
+  <rect x="314" y="292" width="24" height="6" rx="3" fill="#55aa55"/>
+  <rect x="412" y="292" width="24" height="6" rx="3" fill="#55aa55"/>
+  <!-- Arms -->
+  <rect x="292" y="304" width="24" height="52" rx="7" fill="#3a6a3a"/>
+  <rect x="412" y="304" width="24" height="52" rx="7" fill="#3a6a3a"/>
+  <!-- Fists -->
+  <rect x="290" y="354" width="28" height="22" rx="5" fill="#2d5c2d"/>
+  <rect x="410" y="354" width="28" height="22" rx="5" fill="#2d5c2d"/>
+  <!-- Head -->
+  <rect x="344" y="238" width="60" height="58" rx="5" fill="#4a7a4a"/>
+  <!-- Head corner cuts (angled feel) -->
+  <polygon points="344,238 358,238 344,252" fill="#030318"/>
+  <polygon points="404,238 390,238 404,252" fill="#030318"/>
+  <!-- Eye glow outer -->
+  <circle cx="374" cy="267" r="22" fill="#00ff88" opacity="0.2"/>
+  <!-- Eye -->
+  <circle cx="374" cy="267" r="16" fill="#00ff88"/>
+  <circle cx="374" cy="267" r="7"  fill="#001a00"/>
+  <circle cx="369" cy="261" r="5"  fill="#00ff88" opacity="0.55"/>
+  <!-- Legs -->
+  <rect x="340" y="378" width="26" height="66" rx="6" fill="#3a6a3a"/>
+  <rect x="372" y="378" width="26" height="66" rx="6" fill="#3a6a3a"/>
+  <!-- Boots -->
+  <rect x="334" y="434" width="36" height="14" rx="5" fill="#2d5c2d"/>
+  <rect x="368" y="434" width="36" height="14" rx="5" fill="#2d5c2d"/>
+  <!-- Laser beam from eye toward battle zone -->
+  <line x1="352" y1="267" x2="270" y2="310" stroke="#00ff88" stroke-width="5" opacity="0.55"/>
+  <line x1="352" y1="267" x2="262" y2="306" stroke="#00ff88" stroke-width="2" opacity="0.3"/>
+  <!-- Label -->
+  <text x="374" y="500" text-anchor="middle"
+        font-family="Arial Black, sans-serif" font-size="22"
+        fill="#44aa66" font-weight="900">ROBOT</text>
+
+</svg>
