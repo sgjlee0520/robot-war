@@ -40,9 +40,13 @@ canvas { display:block; margin:auto; image-rendering:auto; }
 const W = 360, H = 640;
 
 const MECH_DATA = {
-  og:    { name:'OG',    hp:5200, color:'#00ff88', superName:'Omni-Wave Burst',   superDesc:'8-direction energy bolts radiate outward' },
-  roby:  { name:'ROBY',  hp:3900, color:'#ff2244', superName:'Laser Cross',         superDesc:'Cross lasers fire from the left eye' },
-  mechy: { name:'MECHY', hp:4500, color:'#00ccff', superName:'Missile Barrage',     superDesc:'Homing missiles lock every enemy on screen' },
+  // spriteScale: how to display 432×464 PNGs (og/roby/mechy) or procedural sprites (new chars)
+  og:      { name:'OG',       hp:5200, color:'#00ff88', superName:'Omni-Wave Burst',  superDesc:'8-dir energy bolts radiate outward',   spriteScale:0.13, portraitScale:0.25 },
+  roby:    { name:'ROBY',     hp:3900, color:'#ff2244', superName:'Laser Cross',       superDesc:'Cross lasers fire from the left eye',  spriteScale:0.13, portraitScale:0.25 },
+  mechy:   { name:'MECHY',    hp:4500, color:'#00ccff', superName:'Missile Barrage',   superDesc:'Homing missiles lock every active foe', spriteScale:0.13, portraitScale:0.25 },
+  flamer:  { name:'FLAMER',   hp:5000, color:'#ff6600', superName:'Fire Trail',        superDesc:'Burning ground zones behind the mech', spriteScale:1,    portraitScale:1.9  },
+  mchili:  { name:'M-CHILI',  hp:4915, color:'#cc44ff', superName:'Big Bang',          superDesc:'Massive blaster blast, one huge shot', spriteScale:1,    portraitScale:2.0  },
+  bigmech: { name:'BIG MECH', hp:6200, color:'#778899', superName:'Shockwave',         superDesc:'Stuns & freezes all nearby enemies',   spriteScale:1,    portraitScale:1.8  },
 };
 
 // ── Shared mobile UI kit (post-apoc / tech aesthetic) ─────────
@@ -153,75 +157,118 @@ function loadProgress(reg) {
 class BootScene extends Phaser.Scene {
   constructor() { super('Boot'); }
 
+  preload() {
+    // Load pixel-art PNG sprites for the original three robots
+    this.load.image('og',    'characters/OG.png');
+    this.load.image('roby',  'characters/Roby.png');
+    this.load.image('mechy', 'characters/Mechy.png');
+  }
+
   create() {
     const g = this.add.graphics();
     const stamp = (key, w, h, fn) => { g.clear(); fn(g); g.generateTexture(key, w, h); };
 
-    // ── ROBY: boxy grid-face, cross laser-eye top-left, flat wing panels ──
-    stamp('roby', 46, 56, g => {
-      const hC=0x5577aa, pC=0x3a5580, bC=0x446699;
-      g.fillStyle(hC); g.fillRect(9,2,28,28);
-      g.lineStyle(2,pC,1);
-      g.strokeRect(9,2,28,28); g.strokeRect(9,2,14,14); g.strokeRect(23,2,14,14);
-      g.strokeRect(9,16,14,14); g.strokeRect(23,16,14,14);
-      g.fillStyle(0xff1133); g.fillRect(12,8,8,2); g.fillRect(15,5,2,8); // cross eye
-      g.fillStyle(0xffaa00); g.fillRect(25,5,5,5);
-      g.fillStyle(0xffdd88,.7); g.fillRect(26,6,3,3);
-      g.fillStyle(pC);
-      g.fillRect(11,18,10,2); g.fillRect(11,21,10,2); g.fillRect(11,24,10,2);
-      g.fillRect(25,18,10,2); g.fillRect(25,21,10,2);
-      g.fillStyle(bC); g.fillRect(14,30,18,14);
-      g.fillStyle(pC); g.fillRect(16,32,14,4);
-      g.fillStyle(0x334d77); g.fillRect(0,22,10,8); g.fillRect(36,22,10,8);
-      g.fillStyle(0x6688bb); g.fillRect(0,22,10,2); g.fillRect(36,22,10,2);
-      g.fillStyle(bC); g.fillRect(14,44,8,12); g.fillRect(24,44,8,12);
-      g.fillStyle(pC); g.fillRect(13,53,10,3); g.fillRect(23,53,10,3);
+    // ── FLAMER: legless hover robot, wide spinning flamethrower arms ──────
+    stamp('flamer', 64, 50, g => {
+      const bC=0xaa3300, aC=0xdd4400, fC=0xff6600;
+      // Hover body
+      g.fillStyle(bC); g.fillRoundedRect(16,18,32,22,5);
+      g.fillStyle(aC); g.fillRect(18,20,28,8);
+      // Hover glow beneath (no legs)
+      g.fillStyle(0xff4400,.7); g.fillEllipse(32,43,28,7);
+      g.fillStyle(0xffaa00,.5); g.fillEllipse(32,42,18,4);
+      // Head (round, angry)
+      g.fillStyle(bC); g.fillRoundedRect(20,4,24,16,4);
+      g.fillStyle(aC); g.fillRect(22,6,20,8);
+      // Visor eye (single flame eye)
+      g.fillStyle(0xffff00); g.fillRect(26,8,12,6);
+      g.fillStyle(0xff8800,.7); g.fillRect(28,9,8,4);
+      // Neck
+      g.fillStyle(bC); g.fillRect(28,18,8,4);
+      // Left arm + nozzle
+      g.fillStyle(bC); g.fillRect(0,20,18,8);
+      g.fillStyle(0x882200); g.fillCircle(5,24,7);
+      g.fillStyle(fC,.8); g.fillCircle(3,24,5);
+      g.fillStyle(0xffff88,.6); g.fillCircle(2,24,2);
+      // Right arm + nozzle
+      g.fillStyle(bC); g.fillRect(46,20,18,8);
+      g.fillStyle(0x882200); g.fillCircle(59,24,7);
+      g.fillStyle(fC,.8); g.fillCircle(61,24,5);
+      g.fillStyle(0xffff88,.6); g.fillCircle(62,24,2);
+      // Chest vent
+      g.fillStyle(0x661100); g.fillRect(24,24,16,6);
+      g.fillStyle(0xff4400,.4); g.fillRect(26,25,12,4);
     });
 
-    // ── MECHY: massive wide head, two huge angry eye-plates ──────────────
-    stamp('mechy', 54, 52, g => {
-      const hC=0x446688, eP=0x1a3344, eG=0x00ccff, bC=0x335577;
-      g.fillStyle(hC); g.fillRect(2,0,50,28);
-      g.lineStyle(2,0x223355,1); g.strokeRect(2,0,50,28);
-      g.fillStyle(0x1a2a3a); g.fillRect(2,0,50,7);
-      g.fillStyle(eP); g.fillRect(5,9,19,14);
-      g.fillStyle(eG); g.fillRect(6,10,17,12);
-      g.fillStyle(0x003344); g.fillRect(6,10,17,3); g.fillRect(6,17,17,2);
-      g.fillStyle(0x001122); g.fillTriangle(17,10,23,10,23,16);
-      g.fillStyle(eP); g.fillRect(30,9,19,14);
-      g.fillStyle(eG); g.fillRect(31,10,17,12);
-      g.fillStyle(0x003344); g.fillRect(31,10,17,3); g.fillRect(31,17,17,2);
-      g.fillStyle(0x001122); g.fillTriangle(31,10,37,10,31,16);
-      g.fillStyle(0x223344); g.fillRect(18,24,18,4);
-      g.fillStyle(bC); g.fillRect(12,28,30,16);
-      g.fillStyle(0x2a4455); g.fillRect(17,30,20,8);
-      g.fillStyle(bC); g.fillRect(14,44,11,8); g.fillRect(29,44,11,8);
-      g.fillStyle(0x223344); g.fillRect(13,50,13,2); g.fillRect(28,50,13,2);
+    // ── M-CHILI: blaster-hand robot, purple theme ─────────────────────────
+    stamp('mchili', 52, 62, g => {
+      const hC=0x5533aa, bC=0x6644cc, pC=0x4422aa;
+      // Head
+      g.fillStyle(hC); g.fillRect(10,2,32,26);
+      g.lineStyle(2,pC,1); g.strokeRect(10,2,32,26);
+      // Grill lines on head
+      g.fillStyle(pC,.8); g.fillRect(13,6,26,2); g.fillRect(13,10,26,2); g.fillRect(13,14,26,2);
+      // Eyes
+      g.fillStyle(0xcc44ff); g.fillRect(14,16,9,6);
+      g.fillStyle(0xff88ff,.7); g.fillRect(15,17,7,4);
+      g.fillStyle(0xcc44ff); g.fillRect(29,16,9,6);
+      g.fillStyle(0xff88ff,.7); g.fillRect(30,17,7,4);
+      // Body
+      g.fillStyle(bC); g.fillRect(14,28,24,18);
+      g.lineStyle(1,pC,1); g.strokeRect(14,28,24,18);
+      g.fillStyle(pC); g.fillRect(16,30,20,12);
+      g.fillStyle(0xcc44ff,.5); g.fillRect(22,33,8,6);
+      // Left arm
+      g.fillStyle(hC); g.fillRect(2,28,14,10);
+      // Left blaster (wider, gun-barrel look)
+      g.fillStyle(0x330088); g.fillRect(0,27,6,12);
+      g.fillStyle(0xaa33ff,.7); g.fillRect(0,30,5,6);
+      g.fillStyle(0xee88ff,.5); g.fillCircle(1,33,3);
+      // Right arm
+      g.fillStyle(hC); g.fillRect(36,28,14,10);
+      // Right blaster
+      g.fillStyle(0x330088); g.fillRect(46,27,6,12);
+      g.fillStyle(0xaa33ff,.7); g.fillRect(47,30,5,6);
+      g.fillStyle(0xee88ff,.5); g.fillCircle(51,33,3);
+      // Legs
+      g.fillStyle(bC); g.fillRect(14,46,10,16); g.fillRect(28,46,10,16);
+      g.fillStyle(pC); g.fillRect(12,58,14,4); g.fillRect(26,58,14,4);
     });
 
-    // ── OG: angled head, broad torso w/ crystal slot, curved backpack ────
-    stamp('og', 58, 64, g => {
-      const aC=0x3a6a3a, bC=0x4a7a4a, pC=0x2d5c2d, hC=0x66aa66;
-      g.fillStyle(0x2a4a2a); g.fillEllipse(46,24,20,32);
-      g.fillStyle(0x224422); g.fillRect(44,14,8,28);
-      g.fillStyle(bC); g.fillRect(10,24,36,26);
-      g.lineStyle(1,pC,1); g.strokeRect(10,24,36,26);
-      g.fillStyle(pC); g.fillRect(12,26,14,12); g.fillRect(28,26,14,12);
-      g.fillStyle(hC,.4); g.fillRect(13,27,6,5); g.fillRect(29,27,6,5);
-      g.fillStyle(0xff69b4); g.fillRect(22,29,12,5);
-      g.fillStyle(0xffaadd,.6); g.fillRect(23,30,10,3);
-      g.fillStyle(aC); g.fillRect(0,22,12,14); g.fillRect(44,22,12,14);
-      g.fillStyle(hC); g.fillRect(0,22,12,3); g.fillRect(44,22,12,3);
-      g.fillStyle(aC); g.fillRect(2,36,9,14); g.fillRect(45,36,9,14);
-      g.fillStyle(pC); g.fillRect(1,48,11,8); g.fillRect(44,48,11,8);
-      g.fillStyle(bC); g.fillRect(18,4,22,20);
-      g.fillStyle(0x030318);
-      g.fillTriangle(18,4,26,4,18,10); g.fillTriangle(40,4,32,4,40,10);
-      g.fillStyle(0x00ff88); g.fillCircle(29,14,6);
-      g.fillStyle(0x003311); g.fillCircle(29,14,3);
-      g.fillStyle(0x00ff88,.4); g.fillCircle(27,12,2);
-      g.fillStyle(bC); g.fillRect(11,50,12,14); g.fillRect(33,50,12,14);
-      g.fillStyle(pC); g.fillRect(9,60,15,4); g.fillRect(32,60,15,4);
+    // ── BIG MECH: tank brawler, huge fists, red angry eyes ───────────────
+    stamp('bigmech', 72, 74, g => {
+      const hC=0x445566, bC=0x334455, pC=0x2a3a4a, fC=0x667788;
+      // Wide shoulder pads
+      g.fillStyle(pC); g.fillRect(0,26,14,22); g.fillRect(58,26,14,22);
+      g.fillStyle(fC,.5); g.fillRect(0,26,14,5); g.fillRect(58,26,14,5);
+      // Massive head
+      g.fillStyle(hC); g.fillRect(14,2,44,30);
+      g.lineStyle(2,pC,1); g.strokeRect(14,2,44,30);
+      // Dark brow bar
+      g.fillStyle(0x1a2230); g.fillRect(14,2,44,8);
+      // Angry red eyes
+      g.fillStyle(0xff2200); g.fillRect(18,14,14,9);
+      g.fillStyle(0xff6600,.7); g.fillRect(19,15,12,7);
+      g.fillStyle(0xff2200); g.fillRect(40,14,14,9);
+      g.fillStyle(0xff6600,.7); g.fillRect(41,15,12,7);
+      // Angry eyebrow slashes
+      g.lineStyle(2.5,0x1a2230,1);
+      g.lineBetween(18,14,32,23); g.lineBetween(40,14,54,23);
+      // Body (wide)
+      g.fillStyle(bC); g.fillRect(16,32,40,24);
+      g.lineStyle(1,pC,1); g.strokeRect(16,32,40,24);
+      g.fillStyle(pC); g.fillRect(18,34,36,14);
+      g.fillStyle(fC,.3); g.fillRect(20,36,32,10);
+      // Arms
+      g.fillStyle(bC); g.fillRect(2,30,14,14); g.fillRect(56,30,14,14);
+      // Huge fists
+      g.fillStyle(pC); g.fillRect(0,44,16,18);
+      g.lineStyle(1,fC,.6); g.strokeRect(0,44,16,18);
+      g.fillStyle(pC); g.fillRect(56,44,16,18);
+      g.lineStyle(1,fC,.6); g.strokeRect(56,44,16,18);
+      // Thick legs
+      g.fillStyle(bC); g.fillRect(18,56,14,18); g.fillRect(40,56,14,18);
+      g.fillStyle(pC); g.fillRect(16,68,18,6); g.fillRect(38,68,18,6);
     });
 
     // ── DUMMIES ───────────────────────────────────────────────────────────
@@ -654,7 +701,8 @@ class IntroScene extends Phaser.Scene {
     }
 
     // Player (OG)
-    this.player = this.physics.add.sprite(WW/2,WH-130,'og').setDepth(10).setCollideWorldBounds(true);
+    this.player = this.physics.add.sprite(WW/2,WH-130,'og').setDepth(10).setCollideWorldBounds(true).setScale(MECH_DATA.og.spriteScale);
+    this.player.body.setSize(44,52);
     this.physics.add.collider(this.player,this.walls);
 
     // Crystal in center
@@ -776,7 +824,7 @@ class IntroScene extends Phaser.Scene {
     this.float(this.player.x,this.player.y-60,`${name} REVIVED!`,'#00ccff',20);
     // revived robot appears briefly
     const rx=who==='roby'?130:446, ry=220;
-    const bot=this.add.image(rx,ry-20,who).setDepth(12).setAlpha(0).setScale(2.2);
+    const bot=this.add.image(rx,ry-20,who).setDepth(12).setAlpha(0).setScale(MECH_DATA[who].portraitScale);
     this.tweens.add({targets:bot, alpha:1, y:ry-40, duration:600, hold:1200, ease:'Back.out',
       onComplete:()=>{ this.tweens.add({targets:bot, alpha:0, duration:400, onComplete:()=>bot.destroy()}); }
     });
@@ -855,7 +903,7 @@ class MenuScene extends Phaser.Scene {
     const panelY = 268 + safe.top * 0.5;
     this.add.rectangle(W/2,panelY,W-36,156,0x060620,.88).setStrokeStyle(1.5,0x2a2a55,.9);
     this.add.rectangle(W/2,panelY - 72,W-40,2,0xff69b4,.25);
-    const ogImg=this.add.image(W/2-44,panelY + 2,'og').setScale(2.8);
+    const ogImg=this.add.image(W/2-44,panelY + 2,'og').setScale(MECH_DATA.og.portraitScale * 1.5);
     this.tweens.add({targets:ogImg,y:panelY - 6,duration:1600,yoyo:true,repeat:-1,ease:'Sine.easeInOut'});
     const cImg=this.add.image(W/2+60,panelY - 8,'crystal').setScale(1.6);
     this.tweens.add({targets:cImg,angle:20,duration:2200,yoyo:true,repeat:-1,ease:'Sine.easeInOut'});
@@ -912,9 +960,12 @@ class RobotRoadScene extends Phaser.Scene {
     this.safe = RW.safe(this);
     this.nuts = this.registry.get('nuts') || 0;
     this.mechs = [
-      {key:'og',   name:'OG',    sub:'The Last Survivor', hp:5200, maxLvHp:9100, cost:0,  unlocked:true},
-      {key:'roby', name:'ROBY',  sub:'The Brawler',       hp:3900, maxLvHp:7200, cost:15, unlocked:this.nuts>=15},
-      {key:'mechy',name:'MECHY', sub:'The Engineer',      hp:4500, maxLvHp:8200, cost:30, unlocked:this.nuts>=30},
+      {key:'og',     name:'OG',       sub:'The Last Survivor', hp:5200, maxLvHp:9100,  cost:0,   unlocked:true},
+      {key:'roby',   name:'ROBY',     sub:'The Laser Eye',     hp:3900, maxLvHp:7200,  cost:15,  unlocked:this.nuts>=15},
+      {key:'mechy',  name:'MECHY',    sub:'The Engineer',      hp:4500, maxLvHp:8200,  cost:30,  unlocked:this.nuts>=30},
+      {key:'flamer', name:'FLAMER',   sub:'The Inferno',       hp:5000, maxLvHp:9810,  cost:50,  unlocked:this.nuts>=50},
+      {key:'mchili', name:'M-CHILI',  sub:'The Blaster',       hp:4915, maxLvHp:10010, cost:75,  unlocked:this.nuts>=75},
+      {key:'bigmech',name:'BIG MECH', sub:'The Brawler',       hp:6200, maxLvHp:11400, cost:100, unlocked:this.nuts>=100},
     ];
     this.carouselIndex = Math.max(0, this.mechs.findIndex(m => m.key === (this.registry.get('selectedRobot') || 'og')));
     this.swiping = false;
@@ -993,7 +1044,7 @@ class RobotRoadScene extends Phaser.Scene {
 
     // Portrait stage
     const stage = this.add.rectangle(0, -70, 120, 130, 0x050518, 0.95).setStrokeStyle(1.5, accent, 0.35);
-    const portrait = this.add.image(0, -62, m.key).setScale(2.4);
+    const portrait = this.add.image(0, -62, m.key).setScale(MECH_DATA[m.key].portraitScale);
     if (locked) portrait.setTint(0x1a1a33).setAlpha(0.55);
     card.add([stage, portrait]);
 
@@ -1198,7 +1249,9 @@ class TrainingScene extends Phaser.Scene {
   spawnPlayer(WW,WH) {
     this.mechKey = this.registry.get('selectedRobot') || 'og';
     const data = MECH_DATA[this.mechKey];
-    this.player=this.physics.add.sprite(WW/2,WH/2,this.mechKey).setDepth(10).setCollideWorldBounds(true);
+    this.player=this.physics.add.sprite(WW/2,WH/2,this.mechKey).setDepth(10).setCollideWorldBounds(true).setScale(data.spriteScale||1);
+    // Explicit body size so all characters have the same hitbox regardless of texture size
+    this.player.body.setSize(44,52);
     this.physics.add.collider(this.player,this.walls);
     this.pHP=data.hp; this.pMaxHP=data.hp;
     this.ammo=3; this.maxAmmo=3;
@@ -1397,6 +1450,27 @@ class TrainingScene extends Phaser.Scene {
     this.physics.overlap(this.bullets,this.bigs,     (b,e)=>this.hitEnemy(b,e,25,25,true));
     this.physics.overlap(this.eBullets,this.player,  (p,b)=>this.playerHit(b));
 
+    // Flamer: drop fire zones along trail while super is active
+    if(this._flameTrail){
+      this._flameTrailMs=(this._flameTrailMs||0)+this.game.loop.delta;
+      if(this._flameTrailMs>=200){ this._flameTrailMs=0; this.createFireZone(this.player.x,this.player.y); }
+    }
+    // Fire zone tick damage
+    if(this._fireZones && this._fireZones.length){
+      this._fireZones.forEach(zone=>{
+        if(!zone.active) return;
+        [this.dummies,this.shooters,this.bigs].forEach((grp,gi)=>{
+          grp.getChildren().forEach(e=>{
+            if(!e.active) return;
+            if(Phaser.Math.Distance.Between(zone.x,zone.y,e.x,e.y)<32){
+              e.fireCd=(e.fireCd||0)-this.game.loop.delta;
+              if(e.fireCd<=0){ e.fireCd=700; this.hitEnemyDirect(e,gi===2); }
+            }
+          });
+        });
+      });
+    }
+
     [...this.bullets.getChildren(),...this.eBullets.getChildren()].forEach(b=>{
       if(b.x<0||b.x>900||b.y<0||b.y>900) b.destroy();
     });
@@ -1425,13 +1499,41 @@ class TrainingScene extends Phaser.Scene {
   shoot() {
     if(this.ammo<=0||!this.alive) return;
     this.ammo--; this.refreshAmmo();
+    const chargeSuper=(amt=6)=>{ if(this.superUnlocked){ this.superCharge=Math.min(100,this.superCharge+amt); this.refreshSuperBar(); } };
+
+    // ── BIG MECH: melee punch (no bullets) ──────────────────────
+    if (this.mechKey === 'bigmech') {
+      this.bigMechPunch(); chargeSuper(10); return;
+    }
+
+    // ── FLAMER: spinning 3-shot spread ──────────────────────────
+    if (this.mechKey === 'flamer') {
+      this._flameAngle = ((this._flameAngle||0) + 55) % 360;
+      [-30,0,30].forEach(off=>{
+        const a=Phaser.Math.DegToRad(this._flameAngle+off);
+        const b=this.bullets.create(this.player.x,this.player.y,'bullet').setDepth(9).setScale(1.3,.85);
+        b.setVelocity(Math.cos(a)*240,Math.sin(a)*240);
+        b.setTint(0xff5500);
+      });
+      chargeSuper(5); return;
+    }
+
+    // ── M-CHILI: fast aimed blaster shot ────────────────────────
+    if (this.mechKey === 'mchili') {
+      const tgt=this.nearestEnemy();
+      const a=tgt?Phaser.Math.Angle.Between(this.player.x,this.player.y,tgt.x,tgt.y):(this.player.flipX?Math.PI:0);
+      const b=this.bullets.create(this.player.x,this.player.y,'sBullet').setDepth(9).setScale(1.5);
+      b.setVelocity(Math.cos(a)*490,Math.sin(a)*490);
+      b.setTint(0xcc44ff);
+      chargeSuper(7); return;
+    }
+
+    // ── OG / ROBY / MECHY: standard aimed shot ──────────────────
     const tgt=this.nearestEnemy();
-    const ang=tgt ? Phaser.Math.Angle.Between(this.player.x,this.player.y,tgt.x,tgt.y) : (this.player.flipX?Math.PI:0);
+    const ang=tgt?Phaser.Math.Angle.Between(this.player.x,this.player.y,tgt.x,tgt.y):(this.player.flipX?Math.PI:0);
     const b=this.bullets.create(this.player.x,this.player.y,'bullet').setDepth(9);
     b.setVelocity(Math.cos(ang)*320,Math.sin(ang)*320);
-    if (this.superUnlocked) {
-      this.superCharge=Math.min(100,this.superCharge+6); this.refreshSuperBar();
-    }
+    chargeSuper(6);
   }
 
   activateSuper() {
@@ -1478,13 +1580,59 @@ class TrainingScene extends Phaser.Scene {
         for(let d=0;d<360;d+=45) fireAt(Phaser.Math.DegToRad(d));
       }
       this.float(this.player.x,this.player.y-62,'MISSILE BARRAGE!','#00ccff',24);
+
+    } else if (this.mechKey === 'flamer') {
+      // ── FLAMER: leave burning fire trail for 3 seconds ────────
+      this.cameras.main.flash(200,255,100,0);
+      this._flameTrail = true;
+      this._flameTrailMs = 0;
+      this.time.delayedCall(3000,()=>{ this._flameTrail=false; });
+      this.float(this.player.x,this.player.y-62,'FIRE TRAIL!','#ff6600',28);
+
+    } else if (this.mechKey === 'mchili') {
+      // ── M-CHILI: one massive Big Bang blaster shot ─────────────
+      this.cameras.main.flash(220,180,0,255);
+      const tgt=this.nearestEnemy();
+      const a=tgt?Phaser.Math.Angle.Between(this.player.x,this.player.y,tgt.x,tgt.y):(this.player.flipX?Math.PI:0);
+      const bb=this.bullets.create(this.player.x,this.player.y,'sBullet').setDepth(9).setScale(4,4);
+      bb.setVelocity(Math.cos(a)*580,Math.sin(a)*580);
+      bb.setTint(0xcc44ff);
+      bb.isSuperBullet=true;
+      bb.bigBang=true;
+      this.float(this.player.x,this.player.y-62,'BIG BANG!','#cc44ff',30);
+
+    } else if (this.mechKey === 'bigmech') {
+      // ── BIG MECH: shockwave stuns + damages all nearby enemies ─
+      this.cameras.main.flash(300,100,150,200);
+      const shockR=200;
+      // expanding shockwave ring
+      const ring=this.add.circle(this.player.x,this.player.y,10,0x778899,0.55).setDepth(8);
+      this.tweens.add({targets:ring,scaleX:shockR/10,scaleY:shockR/10,alpha:0,duration:650,ease:'Power2',
+        onComplete:()=>ring.destroy()});
+      let stunCount=0;
+      [this.dummies,this.shooters,this.bigs].forEach((grp,gi)=>{
+        grp.getChildren().forEach(e=>{
+          if(!e.active) return;
+          if(Phaser.Math.Distance.Between(this.player.x,this.player.y,e.x,e.y)<=shockR){
+            // damage
+            this.hitEnemyDirect(e,gi===2);
+            if(e.active){
+              e.stunned=true;
+              e.setTint(0x8899bb);
+              this.time.delayedCall(2500,()=>{ if(e.active){ e.stunned=false; e.clearTint(); } });
+              stunCount++;
+            }
+          }
+        });
+      });
+      this.float(this.player.x,this.player.y-62,`SHOCKWAVE! ×${stunCount}`,'#aabbcc',28);
     }
   }
 
   enemyShoot() {
     if(!this.alive) return;
     this.shooters.getChildren().forEach(e=>{
-      if(!e.active) return;
+      if(!e.active||e.stunned) return;
       if(Phaser.Math.Distance.Between(e.x,e.y,this.player.x,this.player.y)>380) return;
       const ang=Phaser.Math.Angle.Between(e.x,e.y,this.player.x,this.player.y);
       const b=this.eBullets.create(e.x,e.y,'eBullet').setDepth(8);
@@ -1493,7 +1641,7 @@ class TrainingScene extends Phaser.Scene {
   }
 
   hitEnemy(bullet,enemy,_o,_n,isBig=false) {
-    const dmg=bullet.isSuperBullet?65:32;
+    const dmg=bullet.bigBang?220:bullet.isSuperBullet?65:32;
     enemy.hp-=dmg;
     this.float(enemy.x,enemy.y-22,`-${dmg}`,isBig?'#ff8800':'#ffff44',isBig?18:14);
     bullet.destroy();
@@ -1511,6 +1659,59 @@ class TrainingScene extends Phaser.Scene {
       if(isBig){ this.cameras.main.shake(420,.016); this.cameras.main.flash(280,255,100,0); }
       enemy.destroy(); this.save(); this.updateLvUpBtn(); this.checkAllClear();
     }
+  }
+
+  // ── Direct (non-bullet) damage ────────────────────────────────
+  hitEnemyDirect(enemy, isBig=false) {
+    if(!enemy.active) return;
+    const dmg=isBig?55:80;
+    enemy.hp-=dmg;
+    this.float(enemy.x,enemy.y-22,`-${dmg}`,isBig?'#ff8800':'#ffff44',isBig?18:14);
+    if(this.superUnlocked){ this.superCharge=Math.min(100,this.superCharge+(isBig?4:7)); this.refreshSuperBar(); }
+    if(enemy.hp<=0){
+      if(enemy.hpGfx) enemy.hpGfx.destroy();
+      const r=isBig?this.bigReward:this.normalReward;
+      this.oils+=r.oil; this.nuts+=r.nut;
+      this.earnedOils+=r.oil; this.earnedNuts+=r.nut;
+      this.oilChip.getData('setValue')(this.oils);
+      this.nutChip.getData('setValue')(this.nuts);
+      this.float(enemy.x,enemy.y-48,`+${r.oil} oils  +${r.nut} nuts`,isBig?'#ff8800':'#aaffaa',isBig?15:12);
+      if(isBig){ this.cameras.main.shake(420,.016); this.cameras.main.flash(280,255,100,0); }
+      enemy.destroy(); this.save(); this.updateLvUpBtn(); this.checkAllClear();
+    }
+  }
+
+  // ── Big Mech melee punch ──────────────────────────────────────
+  bigMechPunch() {
+    const range=85;
+    let hit=0;
+    [this.dummies,this.shooters,this.bigs].forEach((grp,gi)=>{
+      grp.getChildren().forEach(e=>{
+        if(!e.active) return;
+        if(Phaser.Math.Distance.Between(this.player.x,this.player.y,e.x,e.y)<=range){
+          const ang=Phaser.Math.Angle.Between(this.player.x,this.player.y,e.x,e.y);
+          e.setVelocity(Math.cos(ang)*260,Math.sin(ang)*260);
+          this.time.delayedCall(320,()=>{ if(e.active) e.setVelocity(0,0); });
+          this.hitEnemyDirect(e,gi===2);
+          hit++;
+        }
+      });
+    });
+    this.cameras.main.shake(90,.006);
+    if(!hit) this.float(this.player.x,this.player.y-36,'PUNCH!','#778899',18);
+  }
+
+  // ── Flamer fire zone ─────────────────────────────────────────
+  createFireZone(x,y) {
+    if(!this._fireZones) this._fireZones=[];
+    const g=this.add.graphics().setDepth(7);
+    g.fillStyle(0xff4400,.55); g.fillCircle(0,0,30);
+    g.fillStyle(0xff8800,.35); g.fillCircle(0,0,18);
+    g.x=x; g.y=y;
+    const zone={gfx:g,x,y,active:true};
+    this._fireZones.push(zone);
+    this.tweens.add({targets:g,alpha:0,duration:2800,ease:'Power2',
+      onComplete:()=>{ g.destroy(); zone.active=false; }});
   }
 
   playerHit(bullet) {
